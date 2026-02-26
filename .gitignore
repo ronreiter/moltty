@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+out/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+server/tmp/
+server/bin/
+container/pty-bridge/pty-bridge
+
+# Electron
+client/dist/
+client/out/
+client/release/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TLS certs (sensitive)
+certs/
+*.pem
+*.key
+
+# Database
+*.db
+pgdata/

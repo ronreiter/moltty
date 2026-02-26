@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moltty Terminal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #login-form {
+      max-width: 320px;
+      margin: 100px auto;
+      padding: 24px;
+      background: #313244;
+      border-radius: 12px;
+    }
+    #login-form h2 { margin-bottom: 16px; text-align: center; }
+    #login-form input {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border: 1px solid #585b70;
+      border-radius: 8px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      font-size: 14px;
+    }
+    #login-form button {
+      width: 100%;
+      padding: 10px;
+      background: #89b4fa;
+      color: #1e1e2e;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #login-form button:hover { background: #74c7ec; }
+    #login-error { color: #f38ba8; font-size: 13px; margin-bottom: 8px; display: none; }
+    #app { display: none; flex: 1; flex-direction: row; }
+    #sidebar {
+      width: 240px;
+      background: #313244;
+      border-right: 1px solid #45475a;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+    }
+    #sidebar h3 { font-size: 14px; font-weight: 600; color: #89b4fa; margin-bottom: 12px; }
+    #session-list { flex: 1; overflow-y: auto; }
+    .session-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+    .session-item:hover { background: #1e1e2e; }
+    .session-item.active { background: rgba(137,180,250,0.2); color: #89b4fa; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-running { background: #a6e3a1; }
+    .status-creating, .status-offline { background: #f9e2af; }
+    .status-stopped { background: #585b70; }
+    .status-error { background: #f38ba8; }
+    #terminal-container { flex: 1; padding: 4px; }
+    #no-session {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #585b70;
+      font-size: 14px;
+    }
+    #logout-btn {
+      margin-top: 12px;
+      padding: 8px;
+      background: none;
+      border: 1px solid #45475a;
+      border-radius: 6px;
+      color: #585b70;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #logout-btn:hover { color: #f38ba8; border-color: #f38ba8; }
+  </style>
+</head>
+<body>
+  <div id="login-form">
+    <h2>Moltty</h2>
+    <div id="login-error"></div>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="login-btn">Sign In</button>
+  </div>
+
+  <div id="app">
+    <div id="sidebar">
+      <h3>Moltty</h3>
+      <div id="session-list"></div>
+      <button id="logout-btn">Sign Out</button>
+    </div>
+    <div id="terminal-container"></div>
+    <div id="no-session">Select a session to connect</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

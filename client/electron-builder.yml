@@ -1,0 +1,13 @@
+appId: com.moltty.app
+productName: Moltty
+directories:
+  buildResources: resources
+  output: release
+mac:
+  target: dmg
+  icon: resources/icon.icns
+  category: public.app-category.developer-tools
+  protocols:
+    - name: Moltty Auth
+      schemes:
+        - moltty
