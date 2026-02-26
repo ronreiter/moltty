@@ -7,6 +7,8 @@ import { saveTokens, loadTokens, clearTokens, TokenData } from './auth-store'
 import { WorkerManager } from './worker-manager'
 import { loadWorkerConfig, ensureWorkerId } from './worker-store'
 
+app.setName('Moltty')
+
 let mainWindow: BrowserWindow | null = null
 let workerManager: WorkerManager | null = null
 
