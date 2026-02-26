@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moltty - Remote Terminal Multiplexer for Claude Code</title>
+  <meta name="description" content="Run Claude Code locally, access it from anywhere. Moltty is an open-source remote terminal multiplexer that streams your AI coding sessions to any device." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='12' y='68' font-family='monospace' font-size='50' fill='%2389b4fa'>$_</text></svg>" />
+  <style>
+    :root {
+      --bg: #1e1e2e;
+      --surface: #313244;
+      --border: #45475a;
+      --text: #cdd6f4;
+      --subtext: #a6adc8;
+      --accent: #89b4fa;
+      --green: #a6e3a1;
+      --mauve: #cba6f7;
+      --peach: #fab387;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+    /* Nav */
+    nav {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--surface);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      font-size: 18px;
+    }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--subtext); font-size: 14px; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .gh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      transition: border-color 0.2s;
+    }
+    .gh-btn:hover { border-color: var(--accent); text-decoration: none; }
+
+    /* Hero */
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .hero h1 .accent { color: var(--accent); }
+    .hero p {
+      font-size: 18px;
+      color: var(--subtext);
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }
+    .hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      padding: 12px 28px;
+      background: var(--accent);
+      color: var(--bg);
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.9; text-decoration: none; }
+    .btn-secondary {
+      padding: 12px 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 500;
+      transition: border-color 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); text-decoration: none; }
+
+    /* Terminal mockup */
+    .terminal-mockup {
+      max-width: 720px;
+      margin: 48px auto 0;
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+    }
+    .terminal-titlebar {
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #f38ba8; }
+    .dot-yellow { background: #f9e2af; }
+    .dot-green { background: #a6e3a1; }
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 13px;
+      color: var(--subtext);
+    }
+    .terminal-body {
+      padding: 20px;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      min-height: 200px;
+    }
+    .terminal-body .prompt { color: var(--green); }
+    .terminal-body .cmd { color: var(--text); }
+    .terminal-body .output { color: var(--subtext); }
+    .terminal-body .highlight { color: var(--accent); }
+    .terminal-body .peach { color: var(--peach); }
+
+    /* Features */
+    .features {
+      padding: 80px 0;
+    }
+    .features h2 {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 48px;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+    .feature-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    .feature-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--subtext);
+      line-height: 1.5;
+    }
+
+    /* Architecture */
+    .arch {
+      padding: 60px 0 80px;
+      text-align: center;
+    }
+    .arch h2 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .arch p {
+      color: var(--subtext);
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+    .arch-diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.8;
+      text-align: left;
+      max-width: 640px;
+      margin: 0 auto;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--subtext);
+    }
+    .arch-diagram .a { color: var(--accent); }
+    .arch-diagram .g { color: var(--green); }
+    .arch-diagram .p { color: var(--peach); }
+    .arch-diagram .m { color: var(--mauve); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0;
+      text-align: center;
+      font-size: 14px;
+      color: var(--subtext);
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 32px; }
+      .hero p { font-size: 16px; }
+      .terminal-mockup { margin: 32px 0 0; }
+      .arch-diagram { font-size: 11px; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo">
+      <div class="logo-icon">$_</div>
+      Moltty
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="https://github.com/ronreiter/moltty" class="gh-btn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <h1>Run Claude Code locally.<br /><span class="accent">Access it from anywhere.</span></h1>
+    <p>Moltty is an open-source remote terminal multiplexer. Your Mac runs Claude Code with native credentials and filesystem access. Any device can view and interact with your sessions.</p>
+    <div class="hero-buttons">
+      <a href="https://github.com/ronreiter/moltty" class="btn-primary">Get Started</a>
+      <a href="#architecture" class="btn-secondary">How It Works</a>
+    </div>
+
+    <div class="terminal-mockup">
+      <div class="terminal-titlebar">
+        <div class="terminal-dot dot-red"></div>
+        <div class="terminal-dot dot-yellow"></div>
+        <div class="terminal-dot dot-green"></div>
+        <div class="terminal-title">Moltty &mdash; ~/GitHub/myproject</div>
+      </div>
+      <div class="terminal-body">
+        <span class="prompt">$</span> <span class="cmd">claude</span><br />
+        <span class="output">
+          <span class="highlight">Claude Code</span> v2.1<br /><br />
+          <span class="peach">&gt;</span> Add authentication to the Express API using JWT<br /><br />
+          I'll implement JWT authentication. Let me start by examining<br />
+          the current project structure...<br /><br />
+          <span class="output">Reading src/routes/index.ts...</span><br />
+          <span class="output">Reading src/middleware/...</span><br />
+          <span class="highlight">Created</span> src/middleware/auth.ts<br />
+          <span class="highlight">Updated</span> src/routes/index.ts<br />
+          <span class="highlight">Created</span> src/routes/auth.ts<br />
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="container">
+    <h2>Why Moltty?</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f4bb;</div>
+        <h3>Native Performance</h3>
+        <p>Claude Code runs locally on your Mac with full access to your filesystem, credentials, and tools. No containers, no sandboxes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f310;</div>
+        <h3>Access From Anywhere</h3>
+        <p>Connect from your phone, tablet, or any browser. Your sessions are always running, always accessible.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f504;</div>
+        <h3>Session Persistence</h3>
+        <p>Sessions survive disconnects. Close your laptop, reopen it tomorrow &mdash; your Claude sessions auto-resume right where you left off.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f4dc;</div>
+        <h3>Scrollback Buffer</h3>
+        <p>Every session maintains a scrollback buffer. Connect a new viewer and instantly see everything Claude has done.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f465;</div>
+        <h3>Multi-Viewer</h3>
+        <p>Multiple clients can watch and interact with the same session simultaneously. Pair program with Claude from different devices.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f511;</div>
+        <h3>Session History</h3>
+        <p>Browse and resume any previous Claude conversation. See the working directory, summary, and size of each session at a glance.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="arch" id="architecture">
+  <div class="container">
+    <h2>Architecture</h2>
+    <p>A Mac app as the worker, a Go server as the relay, and any client as a viewer.</p>
+    <div class="arch-diagram"><span class="a">[Mac App / Viewer]</span> --ws--&gt; <span class="g">[Server: relay + scrollback]</span> &lt;--ws-- <span class="p">[Mac App / Worker]</span>
+<span class="a">[Web Browser]</span>      --ws--&gt; <span class="g">[Server]</span>
+<span class="a">[Phone]</span>            --ws--&gt; <span class="g">[Server]</span>
+
+<span class="m">Worker</span>  = Mac Electron app, runs <span class="p">claude</span> via node-pty
+<span class="m">Server</span>  = Go relay, stores scrollback, fans out to viewers
+<span class="m">Viewer</span>  = Any client with xterm.js (Electron, web, mobile)</div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    MIT License &copy; 2026 &mdash; <a href="https://github.com/ronreiter/moltty">github.com/ronreiter/moltty</a>
+  </div>
+</footer>
+
+</body>
+</html>
