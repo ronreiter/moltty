@@ -5,13 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/moltty/server/internal/user"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"gorm.io/gorm"
+)
+
+// pendingTokens stores tokens from completed OAuth flows, keyed by a random state.
+// The Electron app polls to pick them up.
+var (
+	pendingTokens   = make(map[string]*TokenPair)
+	pendingTokensMu sync.Mutex
 )
 
 type GoogleHandler struct {
@@ -96,10 +103,42 @@ func (h *GoogleHandler) Callback(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate tokens"})
 	}
 
-	// Redirect to Electron via moltty:// protocol
-	redirectURL := fmt.Sprintf("moltty://auth-callback?accessToken=%s&refreshToken=%s",
-		url.QueryEscape(tokens.AccessToken),
-		url.QueryEscape(tokens.RefreshToken))
+	// Store tokens for polling and redirect to success page
+	code2 := fmt.Sprintf("%x", u.ID[:8])
+	pendingTokensMu.Lock()
+	pendingTokens[code2] = tokens
+	pendingTokensMu.Unlock()
 
-	return c.Redirect(redirectURL)
+	return c.Redirect(fmt.Sprintf("/api/auth/google/complete?code=%s", code2))
+}
+
+// Complete shows a success page after Google OAuth login.
+func (h *GoogleHandler) Complete(c *fiber.Ctx) error {
+	code2 := c.Query("code")
+
+	pendingTokensMu.Lock()
+	tokens, ok := pendingTokens[code2]
+	if ok {
+		delete(pendingTokens, code2)
+	}
+	pendingTokensMu.Unlock()
+
+	if !ok {
+		c.Set("Content-Type", "text/html")
+		return c.SendString(`<!DOCTYPE html><html><body style="background:#1e1e2e;color:#cdd6f4;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h2>Login expired. Please try again.</h2></body></html>`)
+	}
+
+	c.Set("Content-Type", "text/html")
+	return c.SendString(fmt.Sprintf(`<!DOCTYPE html>
+<html><head><title>Moltty - Login Successful</title></head>
+<body style="background:#1e1e2e;color:#cdd6f4;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+<div style="text-align:center">
+<h2 style="color:#a6e3a1">Login successful!</h2>
+<p>You can close this tab and return to Moltty.</p>
+</div>
+<script>
+window.opener && window.opener.postMessage({type:'moltty-auth',accessToken:'%s',refreshToken:'%s'},'*');
+</script>
+</body></html>`,
+		tokens.AccessToken, tokens.RefreshToken))
 }

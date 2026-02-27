@@ -1,9 +1,22 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
-export default function GoogleLoginButton() {
+interface Props {
+  onTokens: (tokens: { accessToken: string; refreshToken: string }) => void
+}
+
+export default function GoogleLoginButton({ onTokens }: Props) {
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'moltty-auth' && event.data.accessToken) {
+        onTokens({ accessToken: event.data.accessToken, refreshToken: event.data.refreshToken })
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [onTokens])
+
   const handleClick = () => {
-    // Open the OAuth flow in the system browser
-    window.open('http://localhost:8080/api/auth/google', '_blank')
+    window.open('http://localhost:8082/api/auth/google', 'moltty-google-auth', 'width=500,height=600')
   }
 
   return (

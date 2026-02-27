@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
-import { readdirSync, readFileSync, statSync } from 'fs'
+import { readdirSync, readFileSync, statSync, existsSync, mkdirSync } from 'fs'
+import { execSync } from 'child_process'
 import { IPC } from '../shared/ipc-channels'
 import { saveTokens, loadTokens, clearTokens, TokenData } from './auth-store'
 import { WorkerManager } from './worker-manager'
@@ -12,12 +13,57 @@ app.setName('Moltty')
 let mainWindow: BrowserWindow | null = null
 let workerManager: WorkerManager | null = null
 
+// Local PTY sessions
+const localPtySessions = new Map<string, ReturnType<typeof import('node-pty').spawn>>()
+
+// Cache shell PATH (resolved once, reused for all spawns)
+let cachedShellPath: string | null = null
+function getShellPath(): string {
+  if (cachedShellPath !== null) return cachedShellPath
+  try {
+    cachedShellPath = execSync('zsh -lc "echo $PATH"', { encoding: 'utf-8', timeout: 5000 }).trim()
+  } catch {
+    cachedShellPath = process.env.PATH || ''
+  }
+  return cachedShellPath
+}
+
+const resolvedProgramCache = new Map<string, string>()
+function resolveProgram(name: string): string {
+  if (name.startsWith('/')) return name
+  const cached = resolvedProgramCache.get(name)
+  if (cached) return cached
+  let resolved = name
+  try {
+    resolved = execSync(`zsh -lc "which ${name}"`, { encoding: 'utf-8', timeout: 5000 }).trim() || name
+  } catch {
+    const commonPaths = [
+      join(homedir(), '.local', 'bin', name),
+      `/usr/local/bin/${name}`,
+      `/opt/homebrew/bin/${name}`
+    ]
+    for (const p of commonPaths) {
+      if (existsSync(p)) { resolved = p; break }
+    }
+  }
+  resolvedProgramCache.set(name, resolved)
+  return resolved
+}
+
 function createWindow(): void {
+  const iconPath = join(__dirname, '../../resources/icon.png')
+  const icon = nativeImage.createFromPath(iconPath)
+
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(icon)
+  }
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    icon,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#1e1e2e',
     webPreferences: {
@@ -129,19 +175,20 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
             require('fs').closeSync(fd)
             const raw = headBuf.toString('utf-8')
 
-            const firstLine = raw.split('\n')[0]
-            if (!firstLine) continue
-            const meta = JSON.parse(firstLine)
             const st = statSync(filePath)
-
-            // Extract first user message as summary
-            let summary = ''
             const lines = raw.split('\n')
+
+            // Scan lines for cwd, sessionId, and first user message
+            let cwd = ''
+            let sessionId = ''
+            let summary = ''
             for (const line of lines) {
               if (!line) continue
               try {
                 const obj = JSON.parse(line)
-                if (obj.type === 'user' && obj.message) {
+                if (!cwd && obj.cwd) cwd = obj.cwd
+                if (!sessionId && obj.sessionId) sessionId = obj.sessionId
+                if (!summary && obj.type === 'user' && obj.message) {
                   const content = obj.message.content
                   let text = ''
                   if (Array.isArray(content)) {
@@ -153,17 +200,17 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
                   text = text.trim().split('\n')[0].slice(0, 120)
                   if (text && !text.toLowerCase().includes('interrupted')) {
                     summary = text
-                    break
                   }
                 }
+                if (cwd && sessionId && summary) break
               } catch {
-                // skip unparseable lines (may be truncated at end of buffer)
+                // skip unparseable lines
               }
             }
 
             results.push({
-              sessionId: meta.sessionId || file.replace('.jsonl', ''),
-              cwd: meta.cwd || '/' + dir.replace(/-/g, '/').replace(/^\//, ''),
+              sessionId: sessionId || file.replace('.jsonl', ''),
+              cwd: cwd || dir,
               updatedAt: st.mtime.toISOString(),
               size: st.size,
               summary
@@ -185,6 +232,10 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
   return results
 })
 
+ipcMain.handle(IPC.OPEN_EXTERNAL, (_event, url: string) => {
+  shell.openExternal(url)
+})
+
 ipcMain.handle(IPC.PICK_FOLDER, async () => {
   if (!mainWindow) return null
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -193,6 +244,99 @@ ipcMain.handle(IPC.PICK_FOLDER, async () => {
   })
   if (result.canceled || result.filePaths.length === 0) return null
   return result.filePaths[0]
+})
+
+// --- Local PTY handlers ---
+ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string, workDir: string) => {
+  // If a PTY already exists for this session, just reattach (renderer refreshed)
+  const existing = localPtySessions.get(sessionId)
+  if (existing) {
+    console.log(`LOCAL_PTY_REATTACH: sessionId=${sessionId}`)
+    return { ok: true, reattached: true }
+  }
+
+  let resolvedDir = workDir || homedir()
+  if (resolvedDir === '~' || resolvedDir.startsWith('~/')) {
+    resolvedDir = resolvedDir.replace('~', homedir())
+  }
+  try {
+    mkdirSync(resolvedDir, { recursive: true })
+  } catch {
+    resolvedDir = homedir()
+  }
+
+  const parts = command.split(/\s+/)
+  const program = resolveProgram(parts[0])
+  const args = parts.slice(1)
+  const shellPath = getShellPath()
+
+  try {
+    const pty = require('node-pty')
+    const cleanEnv = { ...process.env }
+    delete cleanEnv.CLAUDECODE
+    delete cleanEnv.CLAUDE_CODE_ENTRYPOINT
+    delete cleanEnv.CLAUDE_SESSION_ID
+
+    console.log(`LOCAL_PTY_SPAWN: sessionId=${sessionId} program=${program} args=${JSON.stringify(args)} cwd=${resolvedDir}`)
+
+    const ptyProcess = pty.spawn(program, args, {
+      name: 'xterm-256color',
+      cols: 80,
+      rows: 24,
+      cwd: resolvedDir,
+      env: {
+        ...cleanEnv,
+        PATH: shellPath,
+        TERM: 'xterm-256color',
+        HOME: homedir()
+      }
+    })
+
+    localPtySessions.set(sessionId, ptyProcess)
+
+    ptyProcess.onData((data: string) => {
+      if (localPtySessions.get(sessionId) === ptyProcess) {
+        mainWindow?.webContents.send(IPC.LOCAL_PTY_OUTPUT, sessionId, data)
+      }
+    })
+
+    ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
+      if (localPtySessions.get(sessionId) === ptyProcess) {
+        console.log(`LOCAL_PTY_EXIT: sessionId=${sessionId} exitCode=${exitCode}`)
+        localPtySessions.delete(sessionId)
+        mainWindow?.webContents.send(IPC.LOCAL_PTY_EXIT, sessionId, exitCode)
+      }
+    })
+
+    return { ok: true, reattached: false }
+  } catch (err) {
+    console.error(`Failed to spawn local PTY for ${sessionId}:`, err)
+    return { ok: false, error: String(err) }
+  }
+})
+
+ipcMain.on(IPC.LOCAL_PTY_INPUT, (_event, sessionId: string, data: string) => {
+  localPtySessions.get(sessionId)?.write(data)
+})
+
+ipcMain.on(IPC.LOCAL_PTY_RESIZE, (_event, sessionId: string, cols: number, rows: number) => {
+  try {
+    localPtySessions.get(sessionId)?.resize(cols, rows)
+  } catch {
+    // resize may fail if process is exiting
+  }
+})
+
+ipcMain.handle(IPC.LOCAL_PTY_KILL, (_event, sessionId: string) => {
+  const pty = localPtySessions.get(sessionId)
+  if (pty) {
+    try {
+      pty.kill()
+    } catch {
+      // already dead
+    }
+    localPtySessions.delete(sessionId)
+  }
 })
 
 ipcMain.handle(IPC.WORKER_STATUS, () => {

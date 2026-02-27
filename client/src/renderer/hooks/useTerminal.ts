@@ -4,15 +4,20 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { TerminalWebSocket } from '../services/ws'
 import { api } from '../services/api'
+import { useStore } from '../store'
 
 export function useTerminal(sessionId: string | null) {
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<TerminalWebSocket | null>(null)
+  const cleanupListenersRef = useRef<(() => void) | null>(null)
 
   const initTerminal = useCallback(
-    (container: HTMLDivElement) => {
+    (container: HTMLDivElement, onReady?: () => void) => {
       if (!sessionId || terminalRef.current) return
+
+      // Read session from store at call time
+      const session = useStore.getState().sessions.find((s) => s.id === sessionId)
 
       const terminal = new Terminal({
         cursorBlink: false,
@@ -48,7 +53,6 @@ export function useTerminal(sessionId: string | null) {
       terminal.open(container)
       fitAddon.fit()
 
-      // Try WebGL addon
       try {
         const webglAddon = new WebglAddon()
         webglAddon.onContextLoss(() => {
@@ -56,80 +60,154 @@ export function useTerminal(sessionId: string | null) {
         })
         terminal.loadAddon(webglAddon)
       } catch {
-        // WebGL not available, canvas renderer used instead
+        // WebGL not available
       }
 
       terminalRef.current = terminal
       fitAddonRef.current = fitAddon
 
-      // Track scroll position -- stays true unless user scrolls up
       let isScrolledToBottom = true
       terminal.onScroll(() => {
         const buf = terminal.buffer.active
         isScrolledToBottom = buf.viewportY >= buf.baseY
       })
 
-      // Connect WebSocket
-      api.getTerminalWSUrl(sessionId).then((url) => {
-        const ws = new TerminalWebSocket(
-          url,
-          (data) => {
-            const wasAtBottom = isScrolledToBottom
-            terminal.write(new Uint8Array(data as ArrayBuffer))
-            if (wasAtBottom) {
-              terminal.scrollToBottom()
-            }
-          },
-          () => {
-            terminal.write('\r\n\x1b[31mConnection lost.\x1b[0m\r\n')
-          },
-          () => {
-            // Send resize once connection is open
-            ws.sendResize(terminal.cols, terminal.rows)
+      const isLocal = session?.status === 'offline'
+
+      if (isLocal) {
+        let readyCalled = false
+        const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
+          if (sid !== sessionId) return
+          if (!readyCalled) {
+            readyCalled = true
+            useStore.getState().markSessionLoaded(sessionId)
+            onReady?.()
           }
-        )
-        ws.connect()
-        wsRef.current = ws
-      })
+          const wasAtBottom = isScrolledToBottom
+          terminal.write(data)
+          if (wasAtBottom) {
+            terminal.scrollToBottom()
+          }
+        })
 
-      // Terminal input -> WS
-      terminal.onData((data) => {
-        const encoder = new TextEncoder()
-        wsRef.current?.send(encoder.encode(data).buffer as ArrayBuffer)
-      })
+        const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {
+          if (sid !== sessionId) return
+          useStore.getState().markSessionUnloaded(sessionId)
+          terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
+        })
 
-      const resizeObserver = new ResizeObserver(() => {
-        const wasAtBottom = isScrolledToBottom
-        fitAddon.fit()
-        if (wasAtBottom) {
-          terminal.scrollToBottom()
+        cleanupListenersRef.current = () => {
+          removeOutput()
+          removeExit()
         }
-        wsRef.current?.sendResize(terminal.cols, terminal.rows)
-      })
-      resizeObserver.observe(container)
 
-      return () => {
-        resizeObserver.disconnect()
-        wsRef.current?.disconnect()
-        terminal.dispose()
-        terminalRef.current = null
-        fitAddonRef.current = null
-        wsRef.current = null
+        // Spawn or reattach to existing PTY
+        const command = session?.claudeSessionId
+          ? `claude --resume ${session.claudeSessionId}`
+          : 'zsh'
+        window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~').then((result) => {
+          if (!result.ok) {
+            terminal.write(`\r\n\x1b[31mFailed to start: ${result.error}\x1b[0m\r\n`)
+          } else {
+            window.electronAPI.resizeLocalPty(sessionId, terminal.cols, terminal.rows)
+            if (result.reattached) {
+              // PTY already running — mark loaded immediately
+              useStore.getState().markSessionLoaded(sessionId)
+              onReady?.()
+            }
+          }
+        })
+
+        terminal.onData((data) => {
+          window.electronAPI.sendLocalPtyInput(sessionId, data)
+        })
+
+        const resizeObserver = new ResizeObserver(() => {
+          const wasAtBottom = isScrolledToBottom
+          fitAddon.fit()
+          if (wasAtBottom) {
+            terminal.scrollToBottom()
+          }
+          window.electronAPI.resizeLocalPty(sessionId, terminal.cols, terminal.rows)
+        })
+        resizeObserver.observe(container)
+
+        return () => {
+          resizeObserver.disconnect()
+          cleanupListenersRef.current?.()
+          cleanupListenersRef.current = null
+          // Don't kill PTY here — main process tracks the active instance
+          terminal.dispose()
+          terminalRef.current = null
+          fitAddonRef.current = null
+        }
+      } else {
+        api.getTerminalWSUrl(sessionId).then((url) => {
+          const ws = new TerminalWebSocket(
+            url,
+            (data) => {
+              onReady?.()
+              const wasAtBottom = isScrolledToBottom
+              terminal.write(new Uint8Array(data as ArrayBuffer))
+              if (wasAtBottom) {
+                terminal.scrollToBottom()
+              }
+            },
+            () => {
+              terminal.write('\r\n\x1b[31mConnection lost.\x1b[0m\r\n')
+            },
+            () => {
+              ws.sendResize(terminal.cols, terminal.rows)
+            }
+          )
+          ws.connect()
+          wsRef.current = ws
+        })
+
+        terminal.onData((data) => {
+          const encoder = new TextEncoder()
+          wsRef.current?.send(encoder.encode(data).buffer as ArrayBuffer)
+        })
+
+        const resizeObserver = new ResizeObserver(() => {
+          const wasAtBottom = isScrolledToBottom
+          fitAddon.fit()
+          if (wasAtBottom) {
+            terminal.scrollToBottom()
+          }
+          wsRef.current?.sendResize(terminal.cols, terminal.rows)
+        })
+        resizeObserver.observe(container)
+
+        return () => {
+          resizeObserver.disconnect()
+          wsRef.current?.disconnect()
+          terminal.dispose()
+          terminalRef.current = null
+          fitAddonRef.current = null
+          wsRef.current = null
+        }
       }
     },
     [sessionId]
   )
 
-  // Clean up on sessionId change
+  // Clean up on sessionId change or final unmount
   useEffect(() => {
     return () => {
+      cleanupListenersRef.current?.()
+      cleanupListenersRef.current = null
       wsRef.current?.disconnect()
+      wsRef.current = null
+      if (sessionId) {
+        window.electronAPI.killLocalPty(sessionId)
+        useStore.getState().markSessionUnloaded(sessionId)
+      }
       terminalRef.current?.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
-      wsRef.current = null
     }
   }, [sessionId])
 
-  return { initTerminal }
+  return { initTerminal, terminalRef }
 }

@@ -47,10 +47,18 @@ export function useAuth() {
     [setTokens]
   )
 
+  const loginWithTokens = useCallback(
+    async (tokens: { accessToken: string; refreshToken: string }) => {
+      await window.electronAPI.setToken(tokens)
+      setTokens(tokens.accessToken, tokens.refreshToken)
+    },
+    [setTokens]
+  )
+
   const logout = useCallback(async () => {
     await window.electronAPI.clearToken()
     clearAuth()
   }, [clearAuth])
 
-  return { isAuthenticated, login, register, logout }
+  return { isAuthenticated, login, register, loginWithTokens, logout }
 }

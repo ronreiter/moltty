@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import GoogleLoginButton from './GoogleLoginButton'
 
 export default function LoginForm() {
-  const { login, register } = useAuth()
+  const { login, register, loginWithTokens } = useAuth()
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -81,7 +81,7 @@ export default function LoginForm() {
           <div className="flex-1 h-px bg-terminal-border" />
         </div>
 
-        <GoogleLoginButton />
+        <GoogleLoginButton onTokens={loginWithTokens} />
 
         <p className="mt-6 text-center text-terminal-subtext text-sm">
           {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}

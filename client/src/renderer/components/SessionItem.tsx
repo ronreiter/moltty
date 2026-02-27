@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Session } from '../store'
+import { Session, useStore } from '../store'
 
 interface Props {
   session: Session
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function SessionItem({ session, isActive, onClick, onRename, onDelete }: Props) {
+  const isLoaded = useStore((s) => s.loadedSessionIds.has(session.id))
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(session.name)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -33,13 +34,14 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
     setEditing(false)
   }
 
-  const statusColor = {
-    creating: 'bg-yellow-400',
-    running: 'bg-terminal-green',
-    stopped: 'bg-terminal-subtext',
-    error: 'bg-terminal-red',
-    offline: 'bg-yellow-400'
-  }[session.status]
+  const statusColor = session.status === 'offline'
+    ? (isLoaded ? 'bg-terminal-green' : 'bg-orange-400')
+    : {
+        creating: 'bg-yellow-400',
+        running: 'bg-terminal-green',
+        stopped: 'bg-terminal-subtext',
+        error: 'bg-terminal-red'
+      }[session.status]
 
   return (
     <div

@@ -84,6 +84,7 @@ func main() {
 		)
 		authGroup.Get("/google", googleHandler.RedirectToGoogle)
 		authGroup.Get("/google/callback", googleHandler.Callback)
+		authGroup.Get("/google/complete", googleHandler.Complete)
 	}
 
 	// Worker WebSocket (registered before JWT header middleware)

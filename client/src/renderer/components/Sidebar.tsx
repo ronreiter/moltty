@@ -40,7 +40,7 @@ type Tab = 'sessions' | 'history'
 export default function Sidebar() {
   const { sessions, activeSessionId, createSession, deleteSession, updateSessionName, setActiveSession } =
     useSessions()
-  const { logout } = useAuth()
+  const { isAuthenticated, logout } = useAuth()
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>([])
   const [tab, setTab] = useState<Tab>('sessions')
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -75,8 +75,8 @@ export default function Sidebar() {
         <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty</span>
       </div>
 
-      {/* Worker status */}
-      <WorkerStatus />
+      {/* Worker status — only show when authenticated */}
+      {isAuthenticated && <WorkerStatus />}
 
       {/* New session button */}
       <div className="px-3 pb-2">
@@ -127,7 +127,7 @@ export default function Sidebar() {
           ))}
           {sessions.length === 0 && (
             <p className="text-terminal-subtext text-xs text-center mt-8 px-4">
-              No sessions yet. Create one to get started.
+              No sessions yet. Create one or pick from History.
             </p>
           )}
         </div>
@@ -163,15 +163,17 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* Logout */}
-      <div className="p-3 border-t border-terminal-border">
-        <button
-          onClick={logout}
-          className="w-full py-2 text-sm text-terminal-subtext hover:text-terminal-red rounded-lg hover:bg-terminal-bg transition-colors"
-        >
-          Sign Out
-        </button>
-      </div>
+      {/* Footer — sign out if authenticated, otherwise just spacer */}
+      {isAuthenticated && (
+        <div className="p-3 border-t border-terminal-border">
+          <button
+            onClick={logout}
+            className="w-full py-2 text-sm text-terminal-subtext hover:text-terminal-red rounded-lg hover:bg-terminal-bg transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
     </div>
   )
 }
