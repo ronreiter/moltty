@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { MolttySettings } from '../services/api'
 
 export interface Session {
   id: string
@@ -33,6 +34,8 @@ interface AppState {
   openTabs: string[]
   loadedSessionIds: Set<string>
   hydrated: boolean
+  settings: MolttySettings | null
+  settingsLoaded: boolean
 
   hydrate: () => Promise<void>
   setSessions: (sessions: Session[]) => void
@@ -48,6 +51,7 @@ interface AppState {
   markSessionClosed: (id: string) => void
   setClaudeSessionId: (id: string, claudeSessionId: string) => void
   reopenSession: (id: string) => void
+  setSettings: (settings: MolttySettings) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -56,24 +60,33 @@ export const useStore = create<AppState>((set) => ({
   openTabs: [],
   loadedSessionIds: new Set<string>(),
   hydrated: false,
+  settings: null,
+  settingsLoaded: false,
 
   hydrate: async () => {
     try {
-      const data = await window.electronAPI.loadSessions()
+      const [data, settings] = await Promise.all([
+        window.electronAPI.loadSessions(),
+        window.electronAPI.loadSettings()
+      ])
       if (data) {
         const migrated = migrateData(data)
         set({
           sessions: migrated.sessions,
           openTabs: migrated.openTabs || [],
           activeSessionId: migrated.activeSessionId || null,
-          hydrated: true
+          hydrated: true,
+          settings,
+          settingsLoaded: true
         })
         return
       }
+      set({ hydrated: true, settings, settingsLoaded: true })
+      return
     } catch {
       // electronAPI not available (e.g. in browser tests)
     }
-    set({ hydrated: true })
+    set({ hydrated: true, settingsLoaded: true })
   },
 
   setSessions: (sessions) => set({ sessions }),
@@ -178,7 +191,12 @@ export const useStore = create<AppState>((set) => ({
         openTabs: [...state.openTabs, newId],
         activeSessionId: newId
       }
-    })
+    }),
+
+  setSettings: (settings) => {
+    set({ settings })
+    window.electronAPI?.saveSettings(JSON.stringify(settings))
+  }
 }))
 
 // Save to main process on every state change (skip until hydrated)

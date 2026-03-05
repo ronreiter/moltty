@@ -9,7 +9,7 @@
     "preview": "electron-vite preview",
     "package": "electron-builder",
     "test": "playwright test",
-    "postinstall": "electron-rebuild -f -w node-pty"
+    "postinstall": "electron-rebuild -f -w node-pty && node scripts/patch-electron-name.js"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",

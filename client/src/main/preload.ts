@@ -4,14 +4,16 @@ import { IPC } from '../shared/ipc-channels'
 contextBridge.exposeInMainWorld('electronAPI', {
   loadSessions: () => ipcRenderer.invoke(IPC.LOAD_SESSIONS),
   saveSessions: (data: string) => ipcRenderer.invoke(IPC.SAVE_SESSIONS, data),
+  loadSettings: () => ipcRenderer.invoke(IPC.LOAD_SETTINGS),
+  saveSettings: (data: string) => ipcRenderer.invoke(IPC.SAVE_SETTINGS, data),
   listClaudeSessions: () =>
     ipcRenderer.invoke(IPC.LIST_CLAUDE_SESSIONS) as Promise<
       { sessionId: string; cwd: string; updatedAt: string; size: number; summary: string }[]
     >,
   pickFolder: () => ipcRenderer.invoke(IPC.PICK_FOLDER) as Promise<string | null>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL, url),
-  spawnLocalPty: (sessionId: string, command: string, workDir: string) =>
-    ipcRenderer.invoke(IPC.LOCAL_PTY_SPAWN, sessionId, command, workDir) as Promise<{ ok: boolean; error?: string }>,
+  spawnLocalPty: (sessionId: string, command: string, workDir: string, loadZshrc?: boolean) =>
+    ipcRenderer.invoke(IPC.LOCAL_PTY_SPAWN, sessionId, command, workDir, loadZshrc) as Promise<{ ok: boolean; error?: string }>,
   sendLocalPtyInput: (sessionId: string, data: string) =>
     ipcRenderer.send(IPC.LOCAL_PTY_INPUT, sessionId, data),
   resizeLocalPty: (sessionId: string, cols: number, rows: number) =>

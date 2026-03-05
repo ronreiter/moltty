@@ -1,89 +1,88 @@
 # Moltty
 
-Remote terminal multiplexer for Claude Code. Run Claude Code locally on your Mac with native credentials and filesystem access — view and interact with sessions from any device.
+**[moltty.com](https://moltty.com)**
 
-## How It Works
+A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Codex, Aider, OpenCode, or GitHub Copilot in a tabbed, persistent terminal with a clean UI.
 
-```
-[Mac App / Viewer] --ws--> [Server: relay + scrollback] <--ws-- [Mac App / Worker]
-[Web Browser]      --ws--> [Server]
-[Phone]            --ws--> [Server]
-```
-
-- **Worker** — Mac Electron app, runs `claude` locally via `node-pty`, streams PTY I/O to the server
-- **Server** — Go relay, stores scrollback, fans out to viewers, manages session lifecycle
-- **Viewer** — Any client with xterm.js (Electron app, web browser, phone)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## Features
 
-- **Native execution** — Claude Code runs on your Mac with full access to your filesystem, git, credentials, and tools
-- **Access from anywhere** — Connect from any browser or the Electron app
-- **Session persistence** — Sessions survive disconnects and auto-resume with `claude --continue` when the worker reconnects
-- **Scrollback buffer** — New viewers instantly see everything Claude has output
-- **Multi-viewer** — Multiple clients can watch and interact with the same session simultaneously
+- **Multi-tool support** — Choose your AI coding tool on first launch: Claude Code, OpenCode, Gemini CLI, Codex, Aider, GitHub Copilot, or Amp
+- **Tabbed sessions** — Run multiple sessions side by side with drag-and-drop tab reordering
+- **Session persistence** — Sessions survive app restarts and resume where you left off
 - **Session history** — Browse and resume any previous Claude Code conversation
+- **Native terminal** — Full xterm.js terminal with WebGL rendering, search (Cmd+F), and scrollback
+- **Shell integration** — Optionally loads your `.zshrc` so your full environment is available
+- **Catppuccin theme** — Beautiful dark terminal theme out of the box
+
+## Install
+
+Download the latest `.dmg` from [Releases](https://github.com/ronreiter/moltty/releases), open it, and drag Moltty to Applications.
+
+### Build from source
+
+```bash
+cd client
+npm install
+npm run build
+npm run package
+```
+
+The DMG will be in `client/release/`.
 
 ## Prerequisites
 
-- macOS (worker)
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed (`claude` CLI)
-- Go 1.24+
-- Node.js 20+
-- Docker & Docker Compose (for PostgreSQL)
+- macOS (Apple Silicon or Intel)
+- Your chosen AI coding tool installed and available in your PATH (e.g. `claude`, `gemini`, `codex`)
+- Node.js 20+ (for building from source)
 
-## Quick Start
+## Usage
 
-### 1. Start infrastructure
+1. **First launch** — Pick your AI coding tool and configure shell settings in the onboarding wizard
+2. **New session** — Click "+ New Session" in the sidebar, pick a working directory
+3. **Switch tabs** — Click tabs or use Cmd+Left/Right
+4. **Resume sessions** — Check the History tab to resume previous conversations
+5. **Settings** — Click the gear icon in the sidebar to change your tool or shell config
 
-```bash
-make up
-```
-
-This starts PostgreSQL and Chisel via Docker Compose.
-
-### 2. Build and run the server
-
-```bash
-make server-build
-make server-dev
-```
-
-The server starts on `http://localhost:8082`.
-
-### 3. Install and run the client
-
-```bash
-make client-install
-make client-dev
-```
-
-The Electron app opens. Register an account, and the worker auto-connects. Click **+ New Session** to pick a working directory and start Claude Code.
+Settings are stored in `~/.moltty.settings`.
 
 ## Project Structure
 
 ```
-server/               Go backend (Fiber + GORM + PostgreSQL)
-  cmd/server/           Entry point
-  internal/
-    auth/               JWT auth, Google OAuth
-    config/             Environment config
-    container/          Docker container management (legacy)
-    database/           GORM database connection
-    proxy/              WebSocket terminal proxy
-    session/            Session CRUD and lifecycle
-    user/               User model and repository
-    worker/             Worker hub, protocol, scrollback
-  web/                  Web terminal viewer
-
-client/               Electron + React frontend
+client/
   src/
-    main/               Electron main process (worker manager, IPC)
-    renderer/           React UI (terminal, sidebar, auth)
-    shared/             Shared IPC channel definitions
-
-container/            Container session image (legacy)
-  pty-bridge/           PTY-to-WebSocket bridge
+    main/               Electron main process (PTY management, IPC, settings)
+    renderer/           React UI (terminal, sidebar, onboarding, settings)
+      components/       React components
+      hooks/            Custom hooks (useTerminal, useSessions)
+      store/            Zustand state management
+      services/         Type definitions and API
+    shared/             IPC channel definitions
+  resources/            App icons
+  electron-builder.yml  Build configuration
 ```
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b my-feature`
+3. Install dependencies: `cd client && npm install`
+4. Run in dev mode: `npm run dev`
+5. Make your changes and test them
+6. Commit and push: `git push origin my-feature`
+7. Open a pull request
+
+### Ideas for contributions
+
+- Linux/Windows support
+- Custom themes
+- Split panes
+- Plugin system for additional AI tools
+- Keyboard shortcuts customization
+- Session export/sharing
 
 ## License
 

@@ -3,6 +3,7 @@ import { useStore } from './store'
 import Sidebar from './components/Sidebar'
 import TabBar from './components/TabBar'
 import Terminal, { TerminalHandle } from './components/Terminal'
+import Onboarding from './components/Onboarding'
 
 export default function App() {
   const activeSessionId = useStore((s) => s.activeSessionId)
@@ -11,6 +12,8 @@ export default function App() {
   const setActiveSession = useStore((s) => s.setActiveSession)
   const hydrated = useStore((s) => s.hydrated)
   const hydrate = useStore((s) => s.hydrate)
+  const settings = useStore((s) => s.settings)
+  const settingsLoaded = useStore((s) => s.settingsLoaded)
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map())
 
   // Hydrate store from main process on mount
@@ -62,12 +65,16 @@ export default function App() {
     }
   }, [])
 
-  if (!hydrated) {
+  if (!hydrated || !settingsLoaded) {
     return (
       <div className="flex h-screen bg-terminal-bg items-center justify-center">
         <div className="w-5 h-5 border-2 border-terminal-accent/30 border-t-terminal-accent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  if (!settings) {
+    return <Onboarding />
   }
 
   return (

@@ -1,6 +1,8 @@
 export const IPC = {
   LOAD_SESSIONS: 'sessions:load',
   SAVE_SESSIONS: 'sessions:save',
+  LOAD_SETTINGS: 'settings:load',
+  SAVE_SETTINGS: 'settings:save',
   LIST_CLAUDE_SESSIONS: 'claude:list-sessions',
   PICK_FOLDER: 'dialog:pick-folder',
   OPEN_EXTERNAL: 'shell:open-external',

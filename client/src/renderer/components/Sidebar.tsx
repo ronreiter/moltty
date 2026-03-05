@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { useStore } from '../store'
 import SessionItem from './SessionItem'
+import SettingsModal from './SettingsModal'
 import type { ClaudeSession } from '../services/api'
 
 function shortPath(cwd: string): string {
@@ -43,6 +44,7 @@ export default function Sidebar() {
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>([])
   const [tab, setTab] = useState<Tab>('sessions')
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     if (tab === 'history') {
@@ -180,6 +182,22 @@ export default function Sidebar() {
           )}
         </div>
       )}
+
+      {/* Settings button */}
+      <div className="flex-shrink-0 px-3 py-3 border-t border-terminal-border">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="flex items-center gap-2 text-sm text-terminal-subtext hover:text-terminal-text transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Settings
+        </button>
+      </div>
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

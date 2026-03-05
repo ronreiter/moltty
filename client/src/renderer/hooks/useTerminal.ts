@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { SearchAddon } from '@xterm/addon-search'
 import { useStore } from '../store'
+import { CODING_TOOLS } from '../services/api'
 
 export function useTerminal(sessionId: string | null) {
   const terminalRef = useRef<Terminal | null>(null)
@@ -107,10 +108,13 @@ export function useTerminal(sessionId: string | null) {
         removeClaudeDetected()
       }
 
+      const settings = useStore.getState().settings
+      const toolDef = CODING_TOOLS.find((t) => t.id === settings?.codingTool) || CODING_TOOLS[0]
       const command = session?.claudeSessionId
-        ? `claude --resume ${session.claudeSessionId}`
-        : 'claude'
-      window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~').then((result) => {
+        ? `${toolDef.command} --resume ${session.claudeSessionId}`
+        : toolDef.command
+      const loadZshrc = settings?.loadZshrc ?? true
+      window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~', loadZshrc).then((result) => {
         if (!result.ok) {
           terminal.write(`\r\n\x1b[31mFailed to start: ${result.error}\x1b[0m\r\n`)
         } else {

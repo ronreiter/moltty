@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Moltty - Remote Terminal Multiplexer for Claude Code</title>
-  <meta name="description" content="Run Claude Code locally, access it from anywhere. Moltty is an open-source remote terminal multiplexer that streams your AI coding sessions to any device." />
+  <title>Moltty - Terminal App for AI Coding Tools</title>
+  <meta name="description" content="A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Codex, Aider, and more in a tabbed, persistent terminal." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231e1e2e'/><text x='12' y='68' font-family='monospace' font-size='50' fill='%2389b4fa'>$_</text></svg>" />
   <style>
     :root {
@@ -92,7 +92,7 @@
     .hero p {
       font-size: 18px;
       color: var(--subtext);
-      max-width: 600px;
+      max-width: 620px;
       margin: 0 auto 32px;
     }
     .hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -117,6 +117,24 @@
       transition: border-color 0.2s;
     }
     .btn-secondary:hover { border-color: var(--accent); text-decoration: none; }
+
+    /* Tools strip */
+    .tools-strip {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .tool-badge {
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--subtext);
+      font-weight: 500;
+    }
 
     /* Terminal mockup */
     .terminal-mockup {
@@ -149,12 +167,28 @@
       font-size: 13px;
       color: var(--subtext);
     }
+    .terminal-tabs {
+      display: flex;
+      background: rgba(0,0,0,0.1);
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-tab {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--subtext);
+      border-right: 1px solid var(--border);
+    }
+    .terminal-tab.active {
+      background: var(--bg);
+      color: var(--accent);
+    }
     .terminal-body {
       padding: 20px;
       font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
       font-size: 13px;
       line-height: 1.7;
       min-height: 200px;
+      background: var(--bg);
     }
     .terminal-body .prompt { color: var(--green); }
     .terminal-body .cmd { color: var(--text); }
@@ -198,40 +232,73 @@
       line-height: 1.5;
     }
 
-    /* Architecture */
-    .arch {
+    /* Getting started */
+    .getting-started {
       padding: 60px 0 80px;
-      text-align: center;
     }
-    .arch h2 {
+    .getting-started h2 {
+      text-align: center;
       font-size: 32px;
       font-weight: 700;
       margin-bottom: 16px;
     }
-    .arch p {
+    .getting-started .subtitle {
+      text-align: center;
       color: var(--subtext);
-      margin-bottom: 32px;
+      margin-bottom: 40px;
       font-size: 16px;
     }
-    .arch-diagram {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 32px;
-      font-family: monospace;
-      font-size: 14px;
-      line-height: 1.8;
-      text-align: left;
-      max-width: 640px;
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      max-width: 720px;
       margin: 0 auto;
-      white-space: pre;
-      overflow-x: auto;
+    }
+    .step {
+      text-align: center;
+      padding: 24px;
+    }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+    .step h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .step p {
+      font-size: 14px;
       color: var(--subtext);
     }
-    .arch-diagram .a { color: var(--accent); }
-    .arch-diagram .g { color: var(--green); }
-    .arch-diagram .p { color: var(--peach); }
-    .arch-diagram .m { color: var(--mauve); }
+
+    /* Contributing */
+    .contributing {
+      padding: 60px 0;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+    .contributing h2 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .contributing p {
+      color: var(--subtext);
+      font-size: 16px;
+      max-width: 500px;
+      margin: 0 auto 24px;
+    }
 
     /* Footer */
     footer {
@@ -246,7 +313,6 @@
       .hero h1 { font-size: 32px; }
       .hero p { font-size: 16px; }
       .terminal-mockup { margin: 32px 0 0; }
-      .arch-diagram { font-size: 11px; padding: 16px; }
     }
   </style>
 </head>
@@ -260,10 +326,10 @@
     </div>
     <div class="nav-links">
       <a href="#features">Features</a>
-      <a href="#architecture">Architecture</a>
+      <a href="#getting-started">Get Started</a>
       <a href="https://github.com/ronreiter/moltty" class="gh-btn">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
+        Star on GitHub
       </a>
     </div>
   </div>
@@ -271,11 +337,21 @@
 
 <section class="hero">
   <div class="container">
-    <h1>Run Claude Code locally.<br /><span class="accent">Access it from anywhere.</span></h1>
-    <p>Moltty is an open-source remote terminal multiplexer. Your Mac runs Claude Code with native credentials and filesystem access. Any device can view and interact with your sessions.</p>
+    <h1>Your AI coding tools.<br /><span class="accent">One beautiful terminal.</span></h1>
+    <p>Moltty is an open-source native macOS app that gives your AI coding tools a tabbed, persistent terminal with session history and a clean UI.</p>
     <div class="hero-buttons">
-      <a href="https://github.com/ronreiter/moltty" class="btn-primary">Get Started</a>
-      <a href="#architecture" class="btn-secondary">How It Works</a>
+      <a href="https://github.com/ronreiter/moltty/releases" class="btn-primary">Download for Mac</a>
+      <a href="https://github.com/ronreiter/moltty" class="btn-secondary">View on GitHub</a>
+    </div>
+
+    <div class="tools-strip">
+      <span class="tool-badge">Claude Code</span>
+      <span class="tool-badge">Gemini CLI</span>
+      <span class="tool-badge">Codex</span>
+      <span class="tool-badge">Aider</span>
+      <span class="tool-badge">OpenCode</span>
+      <span class="tool-badge">GitHub Copilot</span>
+      <span class="tool-badge">Amp</span>
     </div>
 
     <div class="terminal-mockup">
@@ -283,7 +359,12 @@
         <div class="terminal-dot dot-red"></div>
         <div class="terminal-dot dot-yellow"></div>
         <div class="terminal-dot dot-green"></div>
-        <div class="terminal-title">Moltty &mdash; ~/GitHub/myproject</div>
+        <div class="terminal-title">Moltty</div>
+      </div>
+      <div class="terminal-tabs">
+        <div class="terminal-tab active">~/myproject</div>
+        <div class="terminal-tab">~/api-server</div>
+        <div class="terminal-tab">~/docs</div>
       </div>
       <div class="terminal-body">
         <span class="prompt">$</span> <span class="cmd">claude</span><br />
@@ -308,50 +389,68 @@
     <h2>Why Moltty?</h2>
     <div class="feature-grid">
       <div class="feature-card">
-        <div class="feature-icon">&#x1f4bb;</div>
-        <h3>Native Performance</h3>
-        <p>Claude Code runs locally on your Mac with full access to your filesystem, credentials, and tools. No containers, no sandboxes.</p>
+        <div class="feature-icon">&#x1f9e0;</div>
+        <h3>Any AI Tool</h3>
+        <p>Pick your tool on first launch &mdash; Claude Code, Gemini CLI, Codex, Aider, OpenCode, Copilot, or Amp. Switch anytime in settings.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#x1f310;</div>
-        <h3>Access From Anywhere</h3>
-        <p>Connect from your phone, tablet, or any browser. Your sessions are always running, always accessible.</p>
+        <div class="feature-icon">&#x1f4cb;</div>
+        <h3>Tabbed Sessions</h3>
+        <p>Run multiple sessions in tabs. Drag to reorder. Switch with Cmd+Left/Right. Each tab is an independent terminal.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">&#x1f504;</div>
         <h3>Session Persistence</h3>
-        <p>Sessions survive disconnects. Close your laptop, reopen it tomorrow &mdash; your Claude sessions auto-resume right where you left off.</p>
+        <p>Sessions survive app restarts. Close Moltty, reopen it tomorrow &mdash; your sessions resume right where you left off.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">&#x1f4dc;</div>
-        <h3>Scrollback Buffer</h3>
-        <p>Every session maintains a scrollback buffer. Connect a new viewer and instantly see everything Claude has done.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">&#x1f465;</div>
-        <h3>Multi-Viewer</h3>
-        <p>Multiple clients can watch and interact with the same session simultaneously. Pair program with Claude from different devices.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">&#x1f511;</div>
         <h3>Session History</h3>
-        <p>Browse and resume any previous Claude conversation. See the working directory, summary, and size of each session at a glance.</p>
+        <p>Browse and resume previous conversations. See the working directory, summary, and size of each session at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f3a8;</div>
+        <h3>Beautiful UI</h3>
+        <p>Catppuccin dark theme, WebGL-accelerated rendering, in-terminal search with Cmd+F, and a clean native macOS look.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1f41a;</div>
+        <h3>Shell Integration</h3>
+        <p>Optionally loads your .zshrc so your PATH, aliases, and functions are available. Your full dev environment, ready to go.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="arch" id="architecture">
+<section class="getting-started" id="getting-started">
   <div class="container">
-    <h2>Architecture</h2>
-    <p>A Mac app as the worker, a Go server as the relay, and any client as a viewer.</p>
-    <div class="arch-diagram"><span class="a">[Mac App / Viewer]</span> --ws--&gt; <span class="g">[Server: relay + scrollback]</span> &lt;--ws-- <span class="p">[Mac App / Worker]</span>
-<span class="a">[Web Browser]</span>      --ws--&gt; <span class="g">[Server]</span>
-<span class="a">[Phone]</span>            --ws--&gt; <span class="g">[Server]</span>
+    <h2>Get Started in 3 Steps</h2>
+    <p class="subtitle">Download, choose your tool, start coding.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Download</h3>
+        <p>Grab the DMG from <a href="https://github.com/ronreiter/moltty/releases">Releases</a> and drag Moltty to Applications.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Pick Your Tool</h3>
+        <p>The onboarding wizard lets you choose Claude, Gemini, Codex, or any supported tool.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Start Coding</h3>
+        <p>Click "+ New Session", pick a folder, and your AI coding tool launches instantly.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-<span class="m">Worker</span>  = Mac Electron app, runs <span class="p">claude</span> via node-pty
-<span class="m">Server</span>  = Go relay, stores scrollback, fans out to viewers
-<span class="m">Viewer</span>  = Any client with xterm.js (Electron, web, mobile)</div>
+<section class="contributing" id="contributing">
+  <div class="container">
+    <h2>Contribute</h2>
+    <p>Moltty is open source and welcomes contributions. Whether it's a bug fix, new feature, or documentation improvement &mdash; we'd love your help.</p>
+    <a href="https://github.com/ronreiter/moltty" class="btn-primary">View on GitHub</a>
   </div>
 </section>
 

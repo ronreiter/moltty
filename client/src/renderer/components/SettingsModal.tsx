@@ -1,0 +1,88 @@
+import React, { useState, useEffect } from 'react'
+import { useStore } from '../store'
+import { CODING_TOOLS, type CodingTool, type MolttySettings } from '../services/api'
+
+export default function SettingsModal({ onClose }: { onClose: () => void }) {
+  const settings = useStore((s) => s.settings)
+  const setSettings = useStore((s) => s.setSettings)
+  const [selected, setSelected] = useState<CodingTool>(settings?.codingTool || 'claude')
+  const [loadZshrc, setLoadZshrc] = useState(settings?.loadZshrc ?? true)
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const handleSave = () => {
+    const newSettings: MolttySettings = { codingTool: selected, loadZshrc }
+    setSettings(newSettings)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="w-[520px] bg-terminal-bg border border-terminal-border rounded-xl p-6 flex flex-col gap-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-terminal-text">Settings</h2>
+          <button onClick={onClose} className="text-terminal-subtext hover:text-terminal-text text-lg leading-none">
+            ×
+          </button>
+        </div>
+
+        <div>
+          <p className="text-sm text-terminal-subtext mb-3">AI Coding Tool</p>
+          <div className="grid grid-cols-2 gap-3">
+            {CODING_TOOLS.map((tool) => (
+              <button
+                key={tool.id}
+                onClick={() => setSelected(tool.id)}
+                className={`flex flex-col items-start gap-1 px-4 py-3 rounded-lg border transition-colors text-left ${
+                  selected === tool.id
+                    ? 'border-terminal-accent bg-terminal-accent/10 text-terminal-accent'
+                    : 'border-terminal-border bg-terminal-surface text-terminal-text hover:border-terminal-accent/50'
+                }`}
+              >
+                <span className="text-sm font-semibold">{tool.name}</span>
+                <span className="text-xs text-terminal-subtext">{tool.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="flex items-center gap-3 px-4 py-3 rounded-lg bg-terminal-surface border border-terminal-border cursor-pointer">
+          <input
+            type="checkbox"
+            checked={loadZshrc}
+            onChange={(e) => setLoadZshrc(e.target.checked)}
+            className="w-4 h-4 rounded accent-terminal-accent"
+          />
+          <div className="flex flex-col">
+            <span className="text-sm text-terminal-text">Load .zshrc on startup</span>
+            <span className="text-xs text-terminal-subtext">Source your shell config before launching the tool</span>
+          </div>
+        </label>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-terminal-subtext hover:text-terminal-text transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 text-sm font-semibold bg-terminal-accent text-terminal-bg rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

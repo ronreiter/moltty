@@ -1,8 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
-import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, mkdirSync } from 'fs'
-import { execSync } from 'child_process'
+import { readdirSync, readFileSync, writeFileSync, statSync, mkdirSync, existsSync } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 
 app.setName('Moltty')
@@ -12,39 +11,6 @@ let mainWindow: BrowserWindow | null = null
 // Local PTY sessions
 const localPtySessions = new Map<string, ReturnType<typeof import('node-pty').spawn>>()
 
-// Cache shell PATH (resolved once, reused for all spawns)
-let cachedShellPath: string | null = null
-function getShellPath(): string {
-  if (cachedShellPath !== null) return cachedShellPath
-  try {
-    cachedShellPath = execSync('zsh -lc "echo $PATH"', { encoding: 'utf-8', timeout: 5000 }).trim()
-  } catch {
-    cachedShellPath = process.env.PATH || ''
-  }
-  return cachedShellPath
-}
-
-const resolvedProgramCache = new Map<string, string>()
-function resolveProgram(name: string): string {
-  if (name.startsWith('/')) return name
-  const cached = resolvedProgramCache.get(name)
-  if (cached) return cached
-  let resolved = name
-  try {
-    resolved = execSync(`zsh -lc "which ${name}"`, { encoding: 'utf-8', timeout: 5000 }).trim() || name
-  } catch {
-    const commonPaths = [
-      join(homedir(), '.local', 'bin', name),
-      `/usr/local/bin/${name}`,
-      `/opt/homebrew/bin/${name}`
-    ]
-    for (const p of commonPaths) {
-      if (existsSync(p)) { resolved = p; break }
-    }
-  }
-  resolvedProgramCache.set(name, resolved)
-  return resolved
-}
 
 function createWindow(): void {
   const iconPath = join(__dirname, '../../resources/icon.png')
@@ -101,6 +67,28 @@ ipcMain.handle(IPC.LOAD_SESSIONS, () => {
 ipcMain.handle(IPC.SAVE_SESSIONS, (_event, data: string) => {
   try {
     writeFileSync(getSessionsPath(), data, 'utf-8')
+  } catch {
+    // write failed
+  }
+})
+
+// Settings persistence (~/.moltty.settings)
+function getSettingsPath(): string {
+  return join(homedir(), '.moltty.settings')
+}
+
+ipcMain.handle(IPC.LOAD_SETTINGS, () => {
+  try {
+    const raw = readFileSync(getSettingsPath(), 'utf-8')
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+})
+
+ipcMain.handle(IPC.SAVE_SETTINGS, (_event, data: string) => {
+  try {
+    writeFileSync(getSettingsPath(), data, 'utf-8')
   } catch {
     // write failed
   }
@@ -196,7 +184,7 @@ ipcMain.handle(IPC.PICK_FOLDER, async () => {
 })
 
 // --- Local PTY handlers ---
-ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string, workDir: string) => {
+ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string, workDir: string, loadZshrc: boolean) => {
   const existing = localPtySessions.get(sessionId)
   if (existing) {
     console.log(`LOCAL_PTY_REATTACH: sessionId=${sessionId}`)
@@ -214,9 +202,6 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
   }
 
   const parts = command.split(/\s+/)
-  const program = resolveProgram(parts[0])
-  const args = parts.slice(1)
-  const shellPath = getShellPath()
 
   try {
     const pty = require('node-pty')
@@ -225,16 +210,18 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
     delete cleanEnv.CLAUDE_CODE_ENTRYPOINT
     delete cleanEnv.CLAUDE_SESSION_ID
 
-    console.log(`LOCAL_PTY_SPAWN: sessionId=${sessionId} program=${program} args=${JSON.stringify(args)} cwd=${resolvedDir}`)
+    console.log(`LOCAL_PTY_SPAWN: sessionId=${sessionId} command=${command} cwd=${resolvedDir}`)
 
-    const ptyProcess = pty.spawn(program, args, {
+    const shellArgs = loadZshrc !== false
+      ? ['-l', '-i', '-c', command]
+      : ['-l', '-c', command]
+    const ptyProcess = pty.spawn('/bin/zsh', shellArgs, {
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
       cwd: resolvedDir,
       env: {
         ...cleanEnv,
-        PATH: shellPath,
         TERM: 'xterm-256color',
         HOME: homedir()
       }
@@ -243,7 +230,7 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
     localPtySessions.set(sessionId, ptyProcess)
 
     // Detect Claude session ID from ~/.claude/projects/ after spawn
-    if (program.includes('claude') && !args.includes('--resume')) {
+    if (parts[0] === 'claude' && !parts.includes('--resume')) {
       const projectDirName = resolvedDir.replace(/\//g, '-')
       const claudeProjectDir = join(homedir(), '.claude', 'projects', projectDirName)
       const beforeFiles = new Set<string>()

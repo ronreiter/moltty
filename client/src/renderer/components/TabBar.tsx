@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { useStore } from '../store'
 
 export default function TabBar() {
@@ -10,6 +10,7 @@ export default function TabBar() {
   const reorderTabs = useStore((s) => s.reorderTabs)
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
+  const [showAbout, setShowAbout] = useState(false)
 
   const handleDragStart = (index: number) => {
     dragIndex.current = index
@@ -29,38 +30,95 @@ export default function TabBar() {
   }
 
   return (
-    <div className="titlebar-drag flex-shrink-0 h-10 flex items-end bg-terminal-surface border-b border-terminal-border overflow-x-auto">
-      {openTabs.map((tabId, index) => {
-        const session = sessions.find((s) => s.id === tabId)
-        if (!session) return null
-        const isActive = tabId === activeSessionId
-        return (
-          <div
-            key={tabId}
-            draggable
-            onDragStart={() => handleDragStart(index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDrop={handleDrop}
-            onClick={() => openTab(tabId)}
-            className={`titlebar-no-drag group flex items-center gap-1.5 pl-2 pr-3 py-1.5 cursor-pointer border-r border-terminal-border text-xs font-medium whitespace-nowrap transition-colors ${
-              isActive
-                ? 'bg-terminal-bg text-terminal-accent'
-                : 'text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50'
-            }`}
+    <>
+      <div className="titlebar-drag flex-shrink-0 h-12 flex items-end bg-terminal-surface border-b border-terminal-border">
+        <div className="flex-1 flex items-end overflow-x-auto">
+          {openTabs.map((tabId, index) => {
+            const session = sessions.find((s) => s.id === tabId)
+            if (!session) return null
+            const isActive = tabId === activeSessionId
+            return (
+              <div
+                key={tabId}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={handleDrop}
+                onClick={() => openTab(tabId)}
+                className={`titlebar-no-drag group flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'bg-terminal-bg text-terminal-accent'
+                    : 'text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50'
+                }`}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    closeTab(tabId)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 hover:text-terminal-red transition-opacity text-[10px] leading-none w-3 text-center"
+                >
+                  ×
+                </button>
+                <span className="truncate max-w-[140px]">{session.name}</span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Right-side buttons */}
+        <div className="titlebar-no-drag flex items-center gap-1 px-3 pb-1.5 flex-shrink-0">
+          <button
+            onClick={() => window.electronAPI.openExternal('https://github.com/ronreiter/moltty')}
+            className="p-1.5 rounded-md text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50 transition-colors"
+            title="Star on GitHub"
           >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setShowAbout(true)}
+            className="p-1.5 rounded-md text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50 transition-colors"
+            title="About Moltty"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* About modal */}
+      {showAbout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowAbout(false)}>
+          <div
+            className="w-[360px] bg-terminal-bg border border-terminal-border rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-terminal-text">Moltty</h2>
+            <p className="text-sm text-terminal-subtext text-center">
+              A terminal client for AI coding tools.
+            </p>
+            <p className="text-xs text-terminal-subtext">Version 1.0.0</p>
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                closeTab(tabId)
+              onClick={() => {
+                window.electronAPI.openExternal('https://github.com/ronreiter/moltty')
+                setShowAbout(false)
               }}
-              className="opacity-0 group-hover:opacity-100 hover:text-terminal-red transition-opacity text-[10px] leading-none w-3 text-center"
+              className="px-4 py-2 text-sm font-semibold bg-terminal-accent text-terminal-bg rounded-lg hover:opacity-90 transition-opacity"
             >
-              ×
+              Star on GitHub
             </button>
-            <span className="truncate max-w-[140px]">{session.name}</span>
+            <button
+              onClick={() => setShowAbout(false)}
+              className="text-sm text-terminal-subtext hover:text-terminal-text transition-colors"
+            >
+              Close
+            </button>
           </div>
-        )
-      })}
-    </div>
+        </div>
+      )}
+    </>
   )
 }
