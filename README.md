@@ -24,14 +24,28 @@ Download the latest `.dmg` from [Releases](https://github.com/ronreiter/moltty/r
 
 ### Build from source
 
+This project uses [Task](https://taskfile.dev/) as a task runner. Install it with `brew install go-task`.
+
+```bash
+task install    # Install dependencies
+task dev        # Run in development mode
+task build      # Build the app
+task package    # Build + package into a DMG
+task release    # Package + create a GitHub release
+task test       # Run Playwright tests
+task clean      # Remove build artifacts
+```
+
+The DMG will be in `client/release/`.
+
+You can also build manually without Task:
+
 ```bash
 cd client
 npm install
 npm run build
 npm run package
 ```
-
-The DMG will be in `client/release/`.
 
 ## Prerequisites
 
