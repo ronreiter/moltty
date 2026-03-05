@@ -1,0 +1,35 @@
+version: '3'
+
+tasks:
+  default:
+    deps: [build]
+
+  install:
+    dir: client
+    cmds:
+      - npm install
+    sources:
+      - package.json
+      - package-lock.json
+
+  dev:
+    deps: [install]
+    dir: client
+    cmds:
+      - npm run dev
+
+  build:
+    deps: [install]
+    dir: client
+    cmds:
+      - npm run build
+
+  test:
+    deps: [install]
+    dir: client
+    cmds:
+      - npx playwright test
+
+  clean:
+    cmds:
+      - rm -rf client/dist client/out

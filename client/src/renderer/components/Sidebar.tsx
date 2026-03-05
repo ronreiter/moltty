@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
-import { useAuth } from '../hooks/useAuth'
+import { useStore } from '../store'
 import SessionItem from './SessionItem'
-import WorkerStatus from './WorkerStatus'
 import type { ClaudeSession } from '../services/api'
 
 function shortPath(cwd: string): string {
@@ -40,7 +39,7 @@ type Tab = 'sessions' | 'history'
 export default function Sidebar() {
   const { sessions, activeSessionId, createSession, deleteSession, updateSessionName, setActiveSession } =
     useSessions()
-  const { isAuthenticated, logout } = useAuth()
+  const reopenSession = useStore((s) => s.reopenSession)
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>([])
   const [tab, setTab] = useState<Tab>('sessions')
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -62,11 +61,20 @@ export default function Sidebar() {
   }
 
   const newSessionWithFolder = async () => {
-    const folder = await window.electronAPI.pickFolder()
-    if (folder) {
-      createSession(shortPath(folder), undefined, folder)
+    try {
+      const folder = await window.electronAPI.pickFolder()
+      if (folder) {
+        createSession(shortPath(folder), undefined, folder)
+      } else {
+        createSession('New Session', undefined, '~')
+      }
+    } catch {
+      createSession('New Session', undefined, '~')
     }
   }
+
+  const openSessions = sessions.filter((s) => s.status === 'open')
+  const closedSessions = sessions.filter((s) => s.status === 'closed')
 
   return (
     <div className="w-64 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
@@ -74,9 +82,6 @@ export default function Sidebar() {
       <div className="titlebar-drag h-10 flex items-center pl-20 pr-4 flex-shrink-0">
         <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty</span>
       </div>
-
-      {/* Worker status — only show when authenticated */}
-      {isAuthenticated && <WorkerStatus />}
 
       {/* New session button */}
       <div className="px-3 pb-2">
@@ -115,12 +120,25 @@ export default function Sidebar() {
       {/* Tab content */}
       {tab === 'sessions' && (
         <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
-          {sessions.map((session) => (
+          {openSessions.map((session) => (
             <SessionItem
               key={session.id}
               session={session}
               isActive={session.id === activeSessionId}
               onClick={() => setActiveSession(session.id)}
+              onRename={(name) => updateSessionName(session.id, name)}
+              onDelete={() => deleteSession(session.id)}
+            />
+          ))}
+          {closedSessions.length > 0 && openSessions.length > 0 && (
+            <div className="border-t border-terminal-border my-1" />
+          )}
+          {closedSessions.map((session) => (
+            <SessionItem
+              key={session.id}
+              session={session}
+              isActive={session.id === activeSessionId}
+              onClick={() => reopenSession(session.id)}
               onRename={(name) => updateSessionName(session.id, name)}
               onDelete={() => deleteSession(session.id)}
             />
@@ -160,18 +178,6 @@ export default function Sidebar() {
           {!loadingHistory && claudeSessions.length === 0 && (
             <p className="text-terminal-subtext text-xs text-center mt-4">No Claude sessions found</p>
           )}
-        </div>
-      )}
-
-      {/* Footer — sign out if authenticated, otherwise just spacer */}
-      {isAuthenticated && (
-        <div className="p-3 border-t border-terminal-border">
-          <button
-            onClick={logout}
-            className="w-full py-2 text-sm text-terminal-subtext hover:text-terminal-red rounded-lg hover:bg-terminal-bg transition-colors"
-          >
-            Sign Out
-          </button>
         </div>
       )}
     </div>

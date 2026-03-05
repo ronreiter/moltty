@@ -45,3 +45,5 @@ certs/
 # Database
 *.db
 pgdata/
+.playwright-mcp/
+client/test-results/

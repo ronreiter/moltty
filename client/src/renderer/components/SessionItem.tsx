@@ -34,14 +34,9 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
     setEditing(false)
   }
 
-  const statusColor = session.status === 'offline'
+  const statusColor = session.status === 'open'
     ? (isLoaded ? 'bg-terminal-green' : 'bg-orange-400')
-    : {
-        creating: 'bg-yellow-400',
-        running: 'bg-terminal-green',
-        stopped: 'bg-terminal-subtext',
-        error: 'bg-terminal-red'
-      }[session.status]
+    : 'bg-terminal-subtext'
 
   return (
     <div

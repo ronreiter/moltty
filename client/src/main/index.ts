@@ -1,17 +1,13 @@
 import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
-import { readdirSync, readFileSync, statSync, existsSync, mkdirSync } from 'fs'
+import { readdirSync, statSync, existsSync, mkdirSync } from 'fs'
 import { execSync } from 'child_process'
 import { IPC } from '../shared/ipc-channels'
-import { saveTokens, loadTokens, clearTokens, TokenData } from './auth-store'
-import { WorkerManager } from './worker-manager'
-import { loadWorkerConfig, ensureWorkerId } from './worker-store'
 
 app.setName('Moltty')
 
 let mainWindow: BrowserWindow | null = null
-let workerManager: WorkerManager | null = null
 
 // Local PTY sessions
 const localPtySessions = new Map<string, ReturnType<typeof import('node-pty').spawn>>()
@@ -59,6 +55,7 @@ function createWindow(): void {
   }
 
   mainWindow = new BrowserWindow({
+    title: 'Moltty',
     width: 1200,
     height: 800,
     minWidth: 800,
@@ -85,75 +82,7 @@ function createWindow(): void {
   })
 }
 
-// Register moltty:// protocol handler for OAuth callbacks
-if (process.defaultApp) {
-  if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient('moltty', process.execPath, [process.argv[1]])
-  }
-} else {
-  app.setAsDefaultProtocolClient('moltty')
-}
-
-// Handle moltty:// URLs on macOS
-app.on('open-url', (_event, url) => {
-  handleProtocolURL(url)
-})
-
-function handleProtocolURL(url: string): void {
-  try {
-    const parsed = new URL(url)
-    if (parsed.hostname === 'auth-callback') {
-      const accessToken = parsed.searchParams.get('accessToken')
-      const refreshToken = parsed.searchParams.get('refreshToken')
-      if (accessToken && refreshToken) {
-        const tokens: TokenData = { accessToken, refreshToken }
-        saveTokens(tokens)
-        mainWindow?.webContents.send(IPC.OAUTH_CALLBACK, tokens)
-        initWorker(tokens)
-      }
-    }
-  } catch (err) {
-    console.error('Failed to parse protocol URL:', err)
-  }
-}
-
-function initWorker(tokens: TokenData): void {
-  if (workerManager) {
-    workerManager.disconnect()
-  }
-
-  const workerConfig = ensureWorkerId()
-  workerManager = new WorkerManager(
-    tokens.accessToken,
-    workerConfig.workerId,
-    workerConfig.workerName
-  )
-
-  workerManager.onStatusChange((connected) => {
-    mainWindow?.webContents.send(IPC.WORKER_STATUS_CHANGE, { isConnected: connected })
-  })
-
-  workerManager.connect()
-}
-
-function stopWorker(): void {
-  if (workerManager) {
-    workerManager.disconnect()
-    workerManager = null
-  }
-}
-
 // IPC handlers
-ipcMain.handle(IPC.GET_TOKEN, () => loadTokens())
-ipcMain.handle(IPC.SET_TOKEN, (_event, tokens: TokenData) => {
-  saveTokens(tokens)
-  initWorker(tokens)
-})
-ipcMain.handle(IPC.CLEAR_TOKEN, () => {
-  clearTokens()
-  stopWorker()
-})
-
 ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
   const projectsDir = join(homedir(), '.claude', 'projects')
   const results: { sessionId: string; cwd: string; updatedAt: string; size: number; summary: string }[] = []
@@ -168,7 +97,6 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
         for (const file of files) {
           const filePath = join(dirPath, file)
           try {
-            // Read only the first chunk to get metadata + first user message
             const fd = require('fs').openSync(filePath, 'r')
             const headBuf = Buffer.alloc(Math.min(64 * 1024, statSync(filePath).size))
             require('fs').readSync(fd, headBuf, 0, headBuf.length, 0)
@@ -178,7 +106,6 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
             const st = statSync(filePath)
             const lines = raw.split('\n')
 
-            // Scan lines for cwd, sessionId, and first user message
             let cwd = ''
             let sessionId = ''
             let summary = ''
@@ -227,7 +154,6 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
     // ~/.claude/projects doesn't exist
   }
 
-  // Sort by most recent first
   results.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   return results
 })
@@ -248,7 +174,6 @@ ipcMain.handle(IPC.PICK_FOLDER, async () => {
 
 // --- Local PTY handlers ---
 ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string, workDir: string) => {
-  // If a PTY already exists for this session, just reattach (renderer refreshed)
   const existing = localPtySessions.get(sessionId)
   if (existing) {
     console.log(`LOCAL_PTY_REATTACH: sessionId=${sessionId}`)
@@ -339,21 +264,8 @@ ipcMain.handle(IPC.LOCAL_PTY_KILL, (_event, sessionId: string) => {
   }
 })
 
-ipcMain.handle(IPC.WORKER_STATUS, () => {
-  const config = loadWorkerConfig()
-  return {
-    isConnected: workerManager?.isConnected ?? false,
-    workerName: config?.workerName ?? 'Unknown'
-  }
-})
-
 app.whenReady().then(() => {
   createWindow()
-  // Auto-init worker if tokens exist
-  const tokens = loadTokens()
-  if (tokens) {
-    initWorker(tokens)
-  }
 })
 
 app.on('window-all-closed', () => {
@@ -366,8 +278,4 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
-})
-
-app.on('before-quit', () => {
-  stopWorker()
 })

@@ -3,8 +3,7 @@ import { create } from 'zustand'
 export interface Session {
   id: string
   name: string
-  status: 'creating' | 'running' | 'stopped' | 'error' | 'offline'
-  sessionType?: 'worker' | 'container'
+  status: 'open' | 'closed'
   workDir?: string
   claudeSessionId?: string
   createdAt: string
@@ -15,37 +14,39 @@ const LOCAL_SESSIONS_KEY = 'moltty:local-sessions'
 function loadLocalSessions(): { sessions: Session[]; openTabs: string[]; activeSessionId: string | null } {
   try {
     const raw = localStorage.getItem(LOCAL_SESSIONS_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const data = JSON.parse(raw)
+      // Migrate old status values — anything that isn't 'closed' becomes 'open'
+      data.sessions = (data.sessions || []).map((s: Session & { status: string }) => ({
+        ...s,
+        status: s.status === 'closed' ? 'closed' : 'open'
+      }))
+      return data
+    }
   } catch {}
   return { sessions: [], openTabs: [], activeSessionId: null }
 }
 
 function saveLocalSessions(sessions: Session[], openTabs: string[], activeSessionId: string | null): void {
-  const localSessions = sessions.filter((s) => s.status === 'offline')
-  const localTabs = openTabs.filter((t) => localSessions.some((s) => s.id === t))
-  const localActive = localSessions.some((s) => s.id === activeSessionId) ? activeSessionId : null
   try {
-    localStorage.setItem(LOCAL_SESSIONS_KEY, JSON.stringify({ sessions: localSessions, openTabs: localTabs, activeSessionId: localActive }))
+    localStorage.setItem(LOCAL_SESSIONS_KEY, JSON.stringify({ sessions, openTabs, activeSessionId }))
   } catch {}
 }
 
 const restored = loadLocalSessions()
+// Sessions with open tabs get reopened (new PTY will spawn), others are closed
+const openTabSet = new Set(restored.openTabs)
+restored.sessions = restored.sessions.map((s) => ({
+  ...s,
+  status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
+}))
 
-interface AuthState {
-  accessToken: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-}
-
-interface AppState extends AuthState {
+interface AppState {
   sessions: Session[]
   activeSessionId: string | null
   openTabs: string[]
   loadedSessionIds: Set<string>
-  workerConnected: boolean
 
-  setTokens: (accessToken: string, refreshToken: string) => void
-  clearAuth: () => void
   setSessions: (sessions: Session[]) => void
   addSession: (session: Session) => void
   removeSession: (id: string) => void
@@ -54,26 +55,17 @@ interface AppState extends AuthState {
   openTab: (id: string) => void
   closeTab: (id: string) => void
   reorderTabs: (fromIndex: number, toIndex: number) => void
-  setWorkerConnected: (connected: boolean) => void
   markSessionLoaded: (id: string) => void
   markSessionUnloaded: (id: string) => void
+  markSessionClosed: (id: string) => void
+  reopenSession: (id: string) => void
 }
 
 export const useStore = create<AppState>((set) => ({
-  accessToken: null,
-  refreshToken: null,
-  isAuthenticated: false,
   sessions: restored.sessions,
   activeSessionId: restored.activeSessionId,
   openTabs: restored.openTabs,
   loadedSessionIds: new Set<string>(),
-  workerConnected: false,
-
-  setTokens: (accessToken, refreshToken) =>
-    set({ accessToken, refreshToken, isAuthenticated: true }),
-
-  clearAuth: () =>
-    set({ accessToken: null, refreshToken: null, isAuthenticated: false }),
 
   setSessions: (sessions) => set({ sessions }),
 
@@ -135,8 +127,6 @@ export const useStore = create<AppState>((set) => ({
       return { openTabs: tabs }
     }),
 
-  setWorkerConnected: (connected) => set({ workerConnected: connected }),
-
   markSessionLoaded: (id) =>
     set((state) => {
       const next = new Set(state.loadedSessionIds)
@@ -149,10 +139,34 @@ export const useStore = create<AppState>((set) => ({
       const next = new Set(state.loadedSessionIds)
       next.delete(id)
       return { loadedSessionIds: next }
+    }),
+
+  markSessionClosed: (id) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'closed' as const } : s))
+    })),
+
+  reopenSession: (id) =>
+    set((state) => {
+      const old = state.sessions.find((s) => s.id === id)
+      if (!old) return state
+      const newId = crypto.randomUUID()
+      const newSession: Session = {
+        id: newId,
+        name: old.name,
+        status: 'open',
+        workDir: old.workDir,
+        claudeSessionId: old.claudeSessionId,
+        createdAt: new Date().toISOString()
+      }
+      return {
+        sessions: [newSession, ...state.sessions.filter((s) => s.id !== id)],
+        openTabs: [...state.openTabs, newId],
+        activeSessionId: newId
+      }
     })
 }))
 
-// Persist local sessions to localStorage on every state change
 useStore.subscribe((state) => {
   saveLocalSessions(state.sessions, state.openTabs, state.activeSessionId)
 })
