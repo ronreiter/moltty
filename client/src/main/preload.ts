@@ -34,5 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: Electron.IpcRendererEvent, sessionId: string, claudeSessionId: string) => cb(sessionId, claudeSessionId)
     ipcRenderer.on(IPC.CLAUDE_SESSION_DETECTED, listener)
     return () => ipcRenderer.removeListener(IPC.CLAUDE_SESSION_DETECTED, listener)
+  },
+  onToolSessionDetected: (cb: (sessionId: string, toolSessionId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, sessionId: string, toolSessionId: string) => cb(sessionId, toolSessionId)
+    ipcRenderer.on(IPC.TOOL_SESSION_DETECTED, listener)
+    return () => ipcRenderer.removeListener(IPC.TOOL_SESSION_DETECTED, listener)
   }
 })

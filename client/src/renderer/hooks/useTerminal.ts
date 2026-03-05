@@ -97,21 +97,21 @@ export function useTerminal(sessionId: string | null) {
         terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
       })
 
-      const removeClaudeDetected = window.electronAPI.onClaudeSessionDetected?.((sid, claudeId) => {
+      const removeToolDetected = window.electronAPI.onToolSessionDetected?.((sid, toolId) => {
         if (sid !== sessionId) return
-        useStore.getState().setClaudeSessionId(sessionId, claudeId)
+        useStore.getState().setToolSessionId(sessionId, toolId)
       }) || (() => {})
 
       cleanupListenersRef.current = () => {
         removeOutput()
         removeExit()
-        removeClaudeDetected()
+        removeToolDetected()
       }
 
       const settings = useStore.getState().settings
       const toolDef = CODING_TOOLS.find((t) => t.id === settings?.codingTool) || CODING_TOOLS[0]
-      const command = session?.claudeSessionId
-        ? `${toolDef.command} --resume ${session.claudeSessionId}`
+      const command = session?.toolSessionId && toolDef.resumeArg
+        ? `${toolDef.command} ${toolDef.resumeArg} ${session.toolSessionId}`
         : toolDef.command
       const loadZshrc = settings?.loadZshrc ?? true
       window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~', loadZshrc).then((result) => {

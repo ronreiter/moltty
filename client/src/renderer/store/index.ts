@@ -6,7 +6,7 @@ export interface Session {
   name: string
   status: 'open' | 'closed'
   workDir?: string
-  claudeSessionId?: string
+  toolSessionId?: string
   createdAt: string
 }
 
@@ -15,10 +15,16 @@ type SessionData = { sessions: Session[]; openTabs: string[]; activeSessionId: s
 function migrateData(data: SessionData): SessionData {
   // Migrate old status values and reopen sessions that had tabs open
   const openTabSet = new Set(data.openTabs || [])
-  data.sessions = (data.sessions || []).map((s: Session & { status: string }) => ({
-    ...s,
-    status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
-  }))
+  data.sessions = (data.sessions || []).map((s: Session & { status: string; claudeSessionId?: string }) => {
+    // Migrate claudeSessionId → toolSessionId
+    const toolSessionId = s.toolSessionId || s.claudeSessionId
+    const { claudeSessionId: _, ...rest } = s as any
+    return {
+      ...rest,
+      toolSessionId,
+      status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
+    }
+  })
   return data
 }
 
@@ -49,7 +55,7 @@ interface AppState {
   markSessionLoaded: (id: string) => void
   markSessionUnloaded: (id: string) => void
   markSessionClosed: (id: string) => void
-  setClaudeSessionId: (id: string, claudeSessionId: string) => void
+  setToolSessionId: (id: string, toolSessionId: string) => void
   reopenSession: (id: string) => void
   setSettings: (settings: MolttySettings) => void
 }
@@ -168,9 +174,9 @@ export const useStore = create<AppState>((set) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'closed' as const } : s))
     })),
 
-  setClaudeSessionId: (id, claudeSessionId) =>
+  setToolSessionId: (id, toolSessionId) =>
     set((state) => ({
-      sessions: state.sessions.map((s) => (s.id === id ? { ...s, claudeSessionId } : s))
+      sessions: state.sessions.map((s) => (s.id === id ? { ...s, toolSessionId } : s))
     })),
 
   reopenSession: (id) =>
@@ -183,7 +189,7 @@ export const useStore = create<AppState>((set) => ({
         name: old.name,
         status: 'open',
         workDir: old.workDir,
-        claudeSessionId: old.claudeSessionId,
+        toolSessionId: old.toolSessionId,
         createdAt: new Date().toISOString()
       }
       return {

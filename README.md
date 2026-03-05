@@ -2,7 +2,7 @@
 
 **[moltty.com](https://moltty.com)**
 
-A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Codex, Aider, OpenCode, or GitHub Copilot in a tabbed, persistent terminal with a clean UI.
+A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Codex, Aider, OpenCode, or GitHub Copilot in a tabbed, persistent terminal with a clean UI. Restart the app, reboot your Mac — your sessions pick up right where you left off.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -12,8 +12,8 @@ A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Co
 
 - **Multi-tool support** — Choose your AI coding tool on first launch: Claude Code, OpenCode, Gemini CLI, Codex, Aider, GitHub Copilot, or Amp
 - **Tabbed sessions** — Run multiple sessions side by side with drag-and-drop tab reordering
-- **Session persistence** — Sessions survive app restarts and resume where you left off
-- **Session history** — Browse and resume any previous Claude Code conversation
+- **Session persistence** — Close Moltty, restart your Mac — all your sessions automatically resume right where you left off. Works with every supported tool.
+- **Session history** — Browse and resume any previous conversation
 - **Native terminal** — Full xterm.js terminal with WebGL rendering, search (Cmd+F), and scrollback
 - **Shell integration** — Optionally loads your `.zshrc` so your full environment is available
 - **Catppuccin theme** — Beautiful dark terminal theme out of the box

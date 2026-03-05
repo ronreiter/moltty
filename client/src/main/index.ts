@@ -229,8 +229,10 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
 
     localPtySessions.set(sessionId, ptyProcess)
 
-    // Detect Claude session ID from ~/.claude/projects/ after spawn
-    if (parts[0] === 'claude' && !parts.includes('--resume')) {
+    // Detect tool session ID after spawn (for tools that support --resume)
+    const isResuming = parts.includes('--resume')
+    if (parts[0] === 'claude' && !isResuming) {
+      // Claude: detect session ID from ~/.claude/projects/
       const projectDirName = resolvedDir.replace(/\//g, '-')
       const claudeProjectDir = join(homedir(), '.claude', 'projects', projectDirName)
       const beforeFiles = new Set<string>()
@@ -238,7 +240,6 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
         readdirSync(claudeProjectDir).filter(f => f.endsWith('.jsonl')).forEach(f => beforeFiles.add(f))
       } catch {}
 
-      // Poll for a new .jsonl file (Claude creates one on session start)
       let pollCount = 0
       const pollInterval = setInterval(() => {
         pollCount++
@@ -251,9 +252,35 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
           const newFile = files.find(f => !beforeFiles.has(f))
           if (newFile) {
             clearInterval(pollInterval)
-            const claudeSessionId = newFile.replace('.jsonl', '')
-            console.log(`CLAUDE_SESSION_DETECTED: molttySession=${sessionId} claudeSession=${claudeSessionId}`)
-            mainWindow?.webContents.send(IPC.CLAUDE_SESSION_DETECTED, sessionId, claudeSessionId)
+            const toolSessionId = newFile.replace('.jsonl', '')
+            console.log(`TOOL_SESSION_DETECTED: molttySession=${sessionId} toolSession=${toolSessionId}`)
+            mainWindow?.webContents.send(IPC.TOOL_SESSION_DETECTED, sessionId, toolSessionId)
+          }
+        } catch {}
+      }, 500)
+    } else if (parts[0] === 'gemini' && !isResuming) {
+      // Gemini CLI: detect session ID from ~/.gemini/sessions/
+      const geminiSessionsDir = join(homedir(), '.gemini', 'sessions')
+      const beforeFiles = new Set<string>()
+      try {
+        readdirSync(geminiSessionsDir).forEach(f => beforeFiles.add(f))
+      } catch {}
+
+      let pollCount = 0
+      const pollInterval = setInterval(() => {
+        pollCount++
+        if (pollCount > 30 || !localPtySessions.has(sessionId)) {
+          clearInterval(pollInterval)
+          return
+        }
+        try {
+          const files = readdirSync(geminiSessionsDir)
+          const newFile = files.find(f => !beforeFiles.has(f))
+          if (newFile) {
+            clearInterval(pollInterval)
+            const toolSessionId = newFile.replace(/\.[^.]+$/, '')
+            console.log(`TOOL_SESSION_DETECTED: molttySession=${sessionId} toolSession=${toolSessionId}`)
+            mainWindow?.webContents.send(IPC.TOOL_SESSION_DETECTED, sessionId, toolSessionId)
           }
         } catch {}
       }, 500)

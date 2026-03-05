@@ -178,7 +178,7 @@ export default function Sidebar() {
               </div>
             ))}
           {!loadingHistory && claudeSessions.length === 0 && (
-            <p className="text-terminal-subtext text-xs text-center mt-4">No Claude sessions found</p>
+            <p className="text-terminal-subtext text-xs text-center mt-4">No sessions found</p>
           )}
         </div>
       )}

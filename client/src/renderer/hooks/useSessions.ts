@@ -13,13 +13,13 @@ export function useSessions() {
   } = useStore()
 
   const createSession = useCallback(
-    (name?: string, claudeSessionId?: string, workDir?: string) => {
+    (name?: string, toolSessionId?: string, workDir?: string) => {
       const session: Session = {
         id: crypto.randomUUID(),
         name: name || 'New Session',
         status: 'open',
         workDir,
-        claudeSessionId,
+        toolSessionId,
         createdAt: new Date().toISOString()
       }
       addSession(session)
