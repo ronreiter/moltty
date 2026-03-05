@@ -30,6 +30,20 @@ tasks:
     cmds:
       - npx playwright test
 
+  package:
+    deps: [build]
+    dir: client
+    cmds:
+      - npm run package
+
+  release:
+    deps: [package]
+    cmds:
+      - gh release create v{{.VERSION}} --title "Moltty v{{.VERSION}}" --generate-notes client/release/Moltty-{{.VERSION}}-arm64.dmg
+    vars:
+      VERSION:
+        sh: node -p "require('./client/package.json').version"
+
   clean:
     cmds:
-      - rm -rf client/dist client/out
+      - rm -rf client/dist client/out client/release
