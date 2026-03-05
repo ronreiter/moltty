@@ -126,6 +126,17 @@ export function useTerminal(sessionId: string | null) {
         }
       })
 
+      // Intercept Shift+Enter to send newline escape sequence instead of carriage return.
+      // xterm.js sends \r for both Enter and Shift+Enter by default, but CLI tools
+      // like Claude Code use Shift+Enter for multi-line input via the CSI u protocol.
+      terminal.attachCustomKeyEventHandler((event) => {
+        if (event.type === 'keydown' && event.key === 'Enter' && event.shiftKey) {
+          window.electronAPI.sendLocalPtyInput(sessionId, '\x1b[13;2u')
+          return false
+        }
+        return true
+      })
+
       terminal.onData((data) => {
         window.electronAPI.sendLocalPtyInput(sessionId, data)
       })
