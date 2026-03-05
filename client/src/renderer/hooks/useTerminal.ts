@@ -69,12 +69,6 @@ export function useTerminal(sessionId: string | null) {
       terminalRef.current = terminal
       fitAddonRef.current = fitAddon
 
-      let isScrolledToBottom = true
-      terminal.onScroll(() => {
-        const buf = terminal.buffer.active
-        isScrolledToBottom = buf.viewportY >= buf.baseY
-      })
-
       let readyCalled = false
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
@@ -83,7 +77,8 @@ export function useTerminal(sessionId: string | null) {
           useStore.getState().markSessionLoaded(sessionId)
           onReady?.()
         }
-        const wasAtBottom = isScrolledToBottom
+        const buf = terminal.buffer.active
+        const wasAtBottom = buf.baseY === 0 || buf.viewportY >= buf.baseY - 1
         terminal.write(data)
         if (wasAtBottom) {
           terminal.scrollToBottom()
@@ -126,12 +121,12 @@ export function useTerminal(sessionId: string | null) {
         }
       })
 
-      // Intercept Shift+Enter to send newline escape sequence instead of carriage return.
+      // Intercept Shift+Enter to send ESC + CR instead of just CR.
       // xterm.js sends \r for both Enter and Shift+Enter by default, but CLI tools
-      // like Claude Code use Shift+Enter for multi-line input via the CSI u protocol.
+      // like Claude Code detect ESC-prefixed CR (meta key) as a newline signal.
       terminal.attachCustomKeyEventHandler((event) => {
         if (event.type === 'keydown' && event.key === 'Enter' && event.shiftKey) {
-          window.electronAPI.sendLocalPtyInput(sessionId, '\x1b[13;2u')
+          window.electronAPI.sendLocalPtyInput(sessionId, '\x1b\r')
           return false
         }
         return true
@@ -142,7 +137,8 @@ export function useTerminal(sessionId: string | null) {
       })
 
       const resizeObserver = new ResizeObserver(() => {
-        const wasAtBottom = isScrolledToBottom
+        const buf = terminal.buffer.active
+        const wasAtBottom = buf.baseY === 0 || buf.viewportY >= buf.baseY - 1
         fitAddon.fit()
         if (wasAtBottom) {
           terminal.scrollToBottom()
