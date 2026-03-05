@@ -135,65 +135,18 @@
       font-weight: 500;
     }
 
-    /* Terminal mockup */
-    .terminal-mockup {
+    /* Screenshot */
+    .screenshot {
       max-width: 720px;
       margin: 48px auto 0;
-      background: var(--surface);
       border-radius: 12px;
-      border: 1px solid var(--border);
       overflow: hidden;
       box-shadow: 0 24px 48px rgba(0,0,0,0.4);
     }
-    .terminal-titlebar {
-      padding: 12px 16px;
-      background: rgba(0,0,0,0.2);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .screenshot img {
+      width: 100%;
+      display: block;
     }
-    .terminal-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-    .dot-red { background: #f38ba8; }
-    .dot-yellow { background: #f9e2af; }
-    .dot-green { background: #a6e3a1; }
-    .terminal-title {
-      flex: 1;
-      text-align: center;
-      font-size: 13px;
-      color: var(--subtext);
-    }
-    .terminal-tabs {
-      display: flex;
-      background: rgba(0,0,0,0.1);
-      border-bottom: 1px solid var(--border);
-    }
-    .terminal-tab {
-      padding: 8px 16px;
-      font-size: 12px;
-      color: var(--subtext);
-      border-right: 1px solid var(--border);
-    }
-    .terminal-tab.active {
-      background: var(--bg);
-      color: var(--accent);
-    }
-    .terminal-body {
-      padding: 20px;
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-      font-size: 13px;
-      line-height: 1.7;
-      min-height: 200px;
-      background: var(--bg);
-    }
-    .terminal-body .prompt { color: var(--green); }
-    .terminal-body .cmd { color: var(--text); }
-    .terminal-body .output { color: var(--subtext); }
-    .terminal-body .highlight { color: var(--accent); }
-    .terminal-body .peach { color: var(--peach); }
 
     /* Features */
     .features {
@@ -311,7 +264,7 @@
     @media (max-width: 600px) {
       .hero h1 { font-size: 32px; }
       .hero p { font-size: 16px; }
-      .terminal-mockup { margin: 32px 0 0; }
+      .screenshot { margin: 32px 0 0; }
     }
   </style>
 </head>
@@ -353,32 +306,8 @@
       <span class="tool-badge">Amp</span>
     </div>
 
-    <div class="terminal-mockup">
-      <div class="terminal-titlebar">
-        <div class="terminal-dot dot-red"></div>
-        <div class="terminal-dot dot-yellow"></div>
-        <div class="terminal-dot dot-green"></div>
-        <div class="terminal-title">Moltty</div>
-      </div>
-      <div class="terminal-tabs">
-        <div class="terminal-tab active">~/myproject</div>
-        <div class="terminal-tab">~/api-server</div>
-        <div class="terminal-tab">~/docs</div>
-      </div>
-      <div class="terminal-body">
-        <span class="prompt">$</span> <span class="cmd">claude</span><br />
-        <span class="output">
-          <span class="highlight">Claude Code</span> v2.1<br /><br />
-          <span class="peach">&gt;</span> Add authentication to the Express API using JWT<br /><br />
-          I'll implement JWT authentication. Let me start by examining<br />
-          the current project structure...<br /><br />
-          <span class="output">Reading src/routes/index.ts...</span><br />
-          <span class="output">Reading src/middleware/...</span><br />
-          <span class="highlight">Created</span> src/middleware/auth.ts<br />
-          <span class="highlight">Updated</span> src/routes/index.ts<br />
-          <span class="highlight">Created</span> src/routes/auth.ts<br />
-        </span>
-      </div>
+    <div class="screenshot">
+      <img src="screenshot.png" alt="Moltty screenshot" />
     </div>
   </div>
 </section>

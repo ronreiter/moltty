@@ -6,6 +6,8 @@ A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Co
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
+![Moltty Screenshot](screenshot.png)
+
 ## Features
 
 - **Multi-tool support** — Choose your AI coding tool on first launch: Claude Code, OpenCode, Gemini CLI, Codex, Aider, GitHub Copilot, or Amp
