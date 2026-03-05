@@ -1,4 +1,6 @@
 export const IPC = {
+  LOAD_SESSIONS: 'sessions:load',
+  SAVE_SESSIONS: 'sessions:save',
   LIST_CLAUDE_SESSIONS: 'claude:list-sessions',
   PICK_FOLDER: 'dialog:pick-folder',
   OPEN_EXTERNAL: 'shell:open-external',
@@ -7,5 +9,6 @@ export const IPC = {
   LOCAL_PTY_RESIZE: 'pty:resize',
   LOCAL_PTY_KILL: 'pty:kill',
   LOCAL_PTY_OUTPUT: 'pty:output',
-  LOCAL_PTY_EXIT: 'pty:exit'
+  LOCAL_PTY_EXIT: 'pty:exit',
+  CLAUDE_SESSION_DETECTED: 'claude:session-detected'
 } as const

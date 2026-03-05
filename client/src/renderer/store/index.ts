@@ -9,44 +9,32 @@ export interface Session {
   createdAt: string
 }
 
-const LOCAL_SESSIONS_KEY = 'moltty:local-sessions'
+type SessionData = { sessions: Session[]; openTabs: string[]; activeSessionId: string | null }
 
-function loadLocalSessions(): { sessions: Session[]; openTabs: string[]; activeSessionId: string | null } {
-  try {
-    const raw = localStorage.getItem(LOCAL_SESSIONS_KEY)
-    if (raw) {
-      const data = JSON.parse(raw)
-      // Migrate old status values — anything that isn't 'closed' becomes 'open'
-      data.sessions = (data.sessions || []).map((s: Session & { status: string }) => ({
-        ...s,
-        status: s.status === 'closed' ? 'closed' : 'open'
-      }))
-      return data
-    }
-  } catch {}
-  return { sessions: [], openTabs: [], activeSessionId: null }
+function migrateData(data: SessionData): SessionData {
+  // Migrate old status values and reopen sessions that had tabs open
+  const openTabSet = new Set(data.openTabs || [])
+  data.sessions = (data.sessions || []).map((s: Session & { status: string }) => ({
+    ...s,
+    status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
+  }))
+  return data
 }
 
-function saveLocalSessions(sessions: Session[], openTabs: string[], activeSessionId: string | null): void {
-  try {
-    localStorage.setItem(LOCAL_SESSIONS_KEY, JSON.stringify({ sessions, openTabs, activeSessionId }))
-  } catch {}
+function saveSessions(sessions: Session[], openTabs: string[], activeSessionId: string | null): void {
+  if (window.electronAPI?.saveSessions) {
+    window.electronAPI.saveSessions(JSON.stringify({ sessions, openTabs, activeSessionId }))
+  }
 }
-
-const restored = loadLocalSessions()
-// Sessions with open tabs get reopened (new PTY will spawn), others are closed
-const openTabSet = new Set(restored.openTabs)
-restored.sessions = restored.sessions.map((s) => ({
-  ...s,
-  status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
-}))
 
 interface AppState {
   sessions: Session[]
   activeSessionId: string | null
   openTabs: string[]
   loadedSessionIds: Set<string>
+  hydrated: boolean
 
+  hydrate: () => Promise<void>
   setSessions: (sessions: Session[]) => void
   addSession: (session: Session) => void
   removeSession: (id: string) => void
@@ -58,14 +46,35 @@ interface AppState {
   markSessionLoaded: (id: string) => void
   markSessionUnloaded: (id: string) => void
   markSessionClosed: (id: string) => void
+  setClaudeSessionId: (id: string, claudeSessionId: string) => void
   reopenSession: (id: string) => void
 }
 
 export const useStore = create<AppState>((set) => ({
-  sessions: restored.sessions,
-  activeSessionId: restored.activeSessionId,
-  openTabs: restored.openTabs,
+  sessions: [],
+  activeSessionId: null,
+  openTabs: [],
   loadedSessionIds: new Set<string>(),
+  hydrated: false,
+
+  hydrate: async () => {
+    try {
+      const data = await window.electronAPI.loadSessions()
+      if (data) {
+        const migrated = migrateData(data)
+        set({
+          sessions: migrated.sessions,
+          openTabs: migrated.openTabs || [],
+          activeSessionId: migrated.activeSessionId || null,
+          hydrated: true
+        })
+        return
+      }
+    } catch {
+      // electronAPI not available (e.g. in browser tests)
+    }
+    set({ hydrated: true })
+  },
 
   setSessions: (sessions) => set({ sessions }),
 
@@ -146,6 +155,11 @@ export const useStore = create<AppState>((set) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'closed' as const } : s))
     })),
 
+  setClaudeSessionId: (id, claudeSessionId) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => (s.id === id ? { ...s, claudeSessionId } : s))
+    })),
+
   reopenSession: (id) =>
     set((state) => {
       const old = state.sessions.find((s) => s.id === id)
@@ -167,6 +181,9 @@ export const useStore = create<AppState>((set) => ({
     })
 }))
 
+// Save to main process on every state change (skip until hydrated)
 useStore.subscribe((state) => {
-  saveLocalSessions(state.sessions, state.openTabs, state.activeSessionId)
+  if (state.hydrated) {
+    saveSessions(state.sessions, state.openTabs, state.activeSessionId)
+  }
 })

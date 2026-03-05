@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels'
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  loadSessions: () => ipcRenderer.invoke(IPC.LOAD_SESSIONS),
+  saveSessions: (data: string) => ipcRenderer.invoke(IPC.SAVE_SESSIONS, data),
   listClaudeSessions: () =>
     ipcRenderer.invoke(IPC.LIST_CLAUDE_SESSIONS) as Promise<
       { sessionId: string; cwd: string; updatedAt: string; size: number; summary: string }[]
@@ -25,5 +27,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: Electron.IpcRendererEvent, sessionId: string, exitCode: number) => cb(sessionId, exitCode)
     ipcRenderer.on(IPC.LOCAL_PTY_EXIT, listener)
     return () => ipcRenderer.removeListener(IPC.LOCAL_PTY_EXIT, listener)
+  },
+  onClaudeSessionDetected: (cb: (sessionId: string, claudeSessionId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, sessionId: string, claudeSessionId: string) => cb(sessionId, claudeSessionId)
+    ipcRenderer.on(IPC.CLAUDE_SESSION_DETECTED, listener)
+    return () => ipcRenderer.removeListener(IPC.CLAUDE_SESSION_DETECTED, listener)
   }
 })

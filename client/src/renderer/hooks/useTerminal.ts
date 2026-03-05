@@ -96,9 +96,15 @@ export function useTerminal(sessionId: string | null) {
         terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
       })
 
+      const removeClaudeDetected = window.electronAPI.onClaudeSessionDetected?.((sid, claudeId) => {
+        if (sid !== sessionId) return
+        useStore.getState().setClaudeSessionId(sessionId, claudeId)
+      }) || (() => {})
+
       cleanupListenersRef.current = () => {
         removeOutput()
         removeExit()
+        removeClaudeDetected()
       }
 
       const command = session?.claudeSessionId

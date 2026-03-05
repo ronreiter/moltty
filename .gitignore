@@ -47,3 +47,4 @@ certs/
 pgdata/
 .playwright-mcp/
 client/test-results/
+.task/

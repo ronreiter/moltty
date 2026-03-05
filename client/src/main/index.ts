@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
-import { readdirSync, statSync, existsSync, mkdirSync } from 'fs'
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, mkdirSync } from 'fs'
 import { execSync } from 'child_process'
 import { IPC } from '../shared/ipc-channels'
 
@@ -82,7 +82,30 @@ function createWindow(): void {
   })
 }
 
-// IPC handlers
+// IPC handlers — session persistence
+function getSessionsPath(): string {
+  const dir = join(app.getPath('userData'), 'moltty-data')
+  mkdirSync(dir, { recursive: true })
+  return join(dir, 'sessions.json')
+}
+
+ipcMain.handle(IPC.LOAD_SESSIONS, () => {
+  try {
+    const raw = readFileSync(getSessionsPath(), 'utf-8')
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+})
+
+ipcMain.handle(IPC.SAVE_SESSIONS, (_event, data: string) => {
+  try {
+    writeFileSync(getSessionsPath(), data, 'utf-8')
+  } catch {
+    // write failed
+  }
+})
+
 ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
   const projectsDir = join(homedir(), '.claude', 'projects')
   const results: { sessionId: string; cwd: string; updatedAt: string; size: number; summary: string }[] = []
@@ -218,6 +241,36 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
     })
 
     localPtySessions.set(sessionId, ptyProcess)
+
+    // Detect Claude session ID from ~/.claude/projects/ after spawn
+    if (program.includes('claude') && !args.includes('--resume')) {
+      const projectDirName = resolvedDir.replace(/\//g, '-')
+      const claudeProjectDir = join(homedir(), '.claude', 'projects', projectDirName)
+      const beforeFiles = new Set<string>()
+      try {
+        readdirSync(claudeProjectDir).filter(f => f.endsWith('.jsonl')).forEach(f => beforeFiles.add(f))
+      } catch {}
+
+      // Poll for a new .jsonl file (Claude creates one on session start)
+      let pollCount = 0
+      const pollInterval = setInterval(() => {
+        pollCount++
+        if (pollCount > 30 || !localPtySessions.has(sessionId)) {
+          clearInterval(pollInterval)
+          return
+        }
+        try {
+          const files = readdirSync(claudeProjectDir).filter(f => f.endsWith('.jsonl'))
+          const newFile = files.find(f => !beforeFiles.has(f))
+          if (newFile) {
+            clearInterval(pollInterval)
+            const claudeSessionId = newFile.replace('.jsonl', '')
+            console.log(`CLAUDE_SESSION_DETECTED: molttySession=${sessionId} claudeSession=${claudeSessionId}`)
+            mainWindow?.webContents.send(IPC.CLAUDE_SESSION_DETECTED, sessionId, claudeSessionId)
+          }
+        } catch {}
+      }, 500)
+    }
 
     ptyProcess.onData((data: string) => {
       if (localPtySessions.get(sessionId) === ptyProcess) {

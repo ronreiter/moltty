@@ -9,7 +9,14 @@ export default function App() {
   const activeSession = useStore((s) => s.sessions.find((sess) => sess.id === s.activeSessionId))
   const openTabs = useStore((s) => s.openTabs)
   const setActiveSession = useStore((s) => s.setActiveSession)
+  const hydrated = useStore((s) => s.hydrated)
+  const hydrate = useStore((s) => s.hydrate)
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map())
+
+  // Hydrate store from main process on mount
+  useEffect(() => {
+    hydrate()
+  }, [hydrate])
 
   // Focus terminal when active tab changes
   useEffect(() => {
@@ -54,6 +61,14 @@ export default function App() {
       terminalRefs.current.delete(tabId)
     }
   }, [])
+
+  if (!hydrated) {
+    return (
+      <div className="flex h-screen bg-terminal-bg items-center justify-center">
+        <div className="w-5 h-5 border-2 border-terminal-accent/30 border-t-terminal-accent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-terminal-bg">

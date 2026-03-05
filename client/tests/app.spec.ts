@@ -6,7 +6,12 @@ const ELECTRON_API_MOCK = `
   window.__ptyExitCallbacks = [];
   window.__ptyInstances = new Map();
 
+  window.__savedSessions = null;
+
   window.electronAPI = {
+    loadSessions: async () => window.__savedSessions,
+    saveSessions: async (data) => { window.__savedSessions = JSON.parse(data); },
+
     listClaudeSessions: async () => [
       {
         sessionId: 'claude-session-1',
@@ -426,47 +431,48 @@ test.describe('Working directory header', () => {
   })
 })
 
-// ─── localStorage persistence ───
+// ─── Persistence ───
 
 test.describe('Persistence', () => {
-  test('sessions are saved to localStorage', async ({ page }) => {
+  test('sessions are saved via electronAPI', async ({ page }) => {
     await setupPage(page)
 
     await page.getByRole('button', { name: '+ New Session' }).click()
     await page.waitForTimeout(100)
 
-    const stored = await page.evaluate(() => {
-      return localStorage.getItem('moltty:local-sessions')
-    })
+    const saved = await page.evaluate(() => (window as any).__savedSessions)
 
-    expect(stored).toBeTruthy()
-    const data = JSON.parse(stored!)
-    expect(data.sessions).toHaveLength(1)
-    expect(data.sessions[0].status).toBe('open')
-    expect(data.openTabs).toHaveLength(1)
+    expect(saved).toBeTruthy()
+    expect(saved.sessions).toHaveLength(1)
+    expect(saved.sessions[0].status).toBe('open')
+    expect(saved.openTabs).toHaveLength(1)
   })
 
   test('sessions persist across page reloads', async ({ page }) => {
-    // Inject the electronAPI mock for all navigations
+    // Inject the electronAPI mock for all navigations (__savedSessions survives in addInitScript context)
     await page.addInitScript(ELECTRON_API_MOCK)
     await page.goto('/')
     await page.waitForSelector('text=Moltty')
-
-    // Clear any stale data, then create a session
-    await page.evaluate(() => localStorage.clear())
-    await page.reload()
-    await page.waitForSelector('text=Moltty')
+    await page.waitForTimeout(200)
 
     await page.getByRole('button', { name: '+ New Session' }).click()
-    await page.waitForTimeout(100)
+    await page.waitForTimeout(200)
 
-    // Verify session is in localStorage before reload
-    const stored = await page.evaluate(() => localStorage.getItem('moltty:local-sessions'))
-    expect(stored).toBeTruthy()
+    // Verify session was saved
+    const saved = await page.evaluate(() => (window as any).__savedSessions)
+    expect(saved).toBeTruthy()
+    expect(saved.sessions).toHaveLength(1)
 
-    // Reload — localStorage persists, electronAPI mock re-applies via addInitScript
+    // Reload — addInitScript re-runs but __savedSessions resets. Simulate persistence
+    // by pre-seeding the mock with saved data
+    const sessionsJson = JSON.stringify(saved)
+    await page.addInitScript((data) => {
+      window.__savedSessions = JSON.parse(data)
+    }, sessionsJson)
+
     await page.reload()
     await page.waitForSelector('text=Moltty')
+    await page.waitForTimeout(200)
 
     // Session should still be in the sidebar
     const sessionItems = page.locator(SIDEBAR_SESSION)
