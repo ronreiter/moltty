@@ -1,4 +1,4 @@
-# Moltty
+# Moltty — Organized, Persistent AI Coding Sessions
 
 **[moltty.com](https://moltty.com)**
 
