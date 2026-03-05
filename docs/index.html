@@ -6,17 +6,18 @@
   <title>Moltty - Terminal App for AI Coding Tools</title>
   <meta name="description" content="A native macOS terminal app for AI coding tools. Run Claude Code, Gemini CLI, Codex, Aider, and more in a tabbed, persistent terminal." />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     :root {
-      --bg: #1e1e2e;
-      --surface: #313244;
-      --border: #45475a;
-      --text: #cdd6f4;
-      --subtext: #a6adc8;
-      --accent: #89b4fa;
-      --green: #a6e3a1;
-      --mauve: #cba6f7;
-      --peach: #fab387;
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --border: #2a2a40;
+      --text: #e2e8f0;
+      --subtext: #94a3b8;
+      --accent: #818cf8;
+      --green: #6ee7b7;
+      --mauve: #c084fc;
+      --peach: #fb923c;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -97,8 +98,8 @@
     .hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .btn-primary {
       padding: 12px 28px;
-      background: var(--accent);
-      color: var(--bg);
+      background: linear-gradient(135deg, var(--accent), var(--mauve));
+      color: #fff;
       border-radius: 10px;
       font-size: 16px;
       font-weight: 600;
@@ -165,10 +166,18 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--accent);
     }
     .feature-icon {
       font-size: 28px;
       margin-bottom: 12px;
+      color: var(--accent);
+    }
+    .feature-icon i {
+      font-size: 28px;
     }
     .feature-card h3 {
       font-size: 18px;
@@ -314,32 +323,32 @@
     <h2>Why Moltty?</h2>
     <div class="feature-grid">
       <div class="feature-card">
-        <div class="feature-icon">&#x1f9e0;</div>
+        <div class="feature-icon"><i class="ti ti-robot"></i></div>
         <h3>Any AI Tool</h3>
         <p>Pick your tool on first launch &mdash; Claude Code, Gemini CLI, Codex, Aider, OpenCode, Copilot, or Amp. Switch anytime in settings.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#x1f4cb;</div>
+        <div class="feature-icon"><i class="ti ti-layout-columns"></i></div>
         <h3>Tabbed Sessions</h3>
         <p>Run multiple sessions in tabs. Drag to reorder. Switch with Cmd+Left/Right. Each tab is an independent terminal.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#x1f504;</div>
+        <div class="feature-icon"><i class="ti ti-refresh"></i></div>
         <h3>Session Persistence</h3>
         <p>Close Moltty, restart your Mac, come back tomorrow &mdash; every session automatically resumes exactly where you left off. Works with all supported tools.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#x1f4dc;</div>
+        <div class="feature-icon"><i class="ti ti-history"></i></div>
         <h3>Session History</h3>
         <p>Browse and resume previous conversations. See the working directory, summary, and size of each session at a glance.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#x1f3a8;</div>
+        <div class="feature-icon"><i class="ti ti-palette"></i></div>
         <h3>Beautiful UI</h3>
         <p>Catppuccin dark theme, WebGL-accelerated rendering, in-terminal search with Cmd+F, and a clean native macOS look.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#x1f41a;</div>
+        <div class="feature-icon"><i class="ti ti-terminal-2"></i></div>
         <h3>Shell Integration</h3>
         <p>Optionally loads your .zshrc so your PATH, aliases, and functions are available. Your full dev environment, ready to go.</p>
       </div>
