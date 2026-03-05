@@ -90,29 +90,36 @@
     }
     .hero h1 .accent { color: var(--accent); }
     .hero p {
-      font-size: 18px;
+      font-size: 20px;
+      line-height: 1.7;
       color: var(--subtext);
-      max-width: 620px;
+      max-width: 640px;
       margin: 0 auto 32px;
     }
     .hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .btn-primary {
-      padding: 12px 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 30px;
       background: linear-gradient(135deg, var(--accent), var(--mauve));
       color: #fff;
       border-radius: 10px;
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 600;
       transition: opacity 0.2s;
     }
     .btn-primary:hover { opacity: 0.9; text-decoration: none; }
     .btn-secondary {
-      padding: 12px 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 30px;
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 10px;
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 500;
       transition: border-color 0.2s;
     }
@@ -298,8 +305,8 @@
     <h1>Organized, Persistent<br /><span class="accent">AI Coding Sessions.</span></h1>
     <p>Moltty is an open-source native macOS app that gives your AI coding tools a tabbed, persistent terminal. Restart the app, reboot your Mac &mdash; every session picks up right where you left off.</p>
     <div class="hero-buttons">
-      <a href="https://github.com/ronreiter/moltty/releases" class="btn-primary">Download for Mac</a>
-      <a href="https://github.com/ronreiter/moltty" class="btn-secondary">View on GitHub</a>
+      <a href="https://github.com/ronreiter/moltty/releases" class="btn-primary"><i class="ti ti-brand-apple"></i> Download for Mac</a>
+      <a href="https://github.com/ronreiter/moltty" class="btn-secondary"><i class="ti ti-brand-github"></i> View on GitHub</a>
     </div>
 
     <div class="tools-strip">
