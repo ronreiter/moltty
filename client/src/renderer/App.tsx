@@ -16,7 +16,7 @@ export default function App() {
   const settings = useStore((s) => s.settings)
   const settingsLoaded = useStore((s) => s.settingsLoaded)
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map())
-  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string; dmgUrl: string } | null>(null)
 
   // Hydrate store from main process on mount
   useEffect(() => {
@@ -32,7 +32,12 @@ export default function App() {
         const latest = d.tag_name.replace(/^v/, '')
         const current = __APP_VERSION__
         if (latest !== current) {
-          setUpdateAvailable(latest)
+          const dmg = d.assets?.find((a: { name: string }) => a.name.endsWith('.dmg'))
+          setUpdateInfo({
+            version: latest,
+            notes: d.body || '',
+            dmgUrl: dmg?.browser_download_url || d.html_url
+          })
         }
       })
       .catch(() => {})
@@ -116,26 +121,40 @@ export default function App() {
         {/* Tab bar in the titlebar area */}
         <TabBar />
 
-        {updateAvailable && (
-          <div className="flex-shrink-0 px-4 py-2 bg-terminal-surface border-b border-terminal-border flex items-center justify-between">
-            <span className="text-xs text-terminal-text">
-              Moltty v{updateAvailable} is available.
-            </span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  window.electronAPI.openExternal('https://github.com/ronreiter/moltty/releases/latest')
-                }}
-                className="text-xs font-semibold text-terminal-accent hover:underline"
-              >
-                Download
-              </button>
-              <button
-                onClick={() => setUpdateAvailable(null)}
-                className="text-xs text-terminal-subtext hover:text-terminal-text"
-              >
-                Dismiss
-              </button>
+        {updateInfo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setUpdateInfo(null)}>
+            <div
+              className="w-[480px] max-h-[80vh] bg-terminal-bg border border-terminal-border rounded-xl p-6 flex flex-col gap-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-terminal-text">Moltty v{updateInfo.version} Available</h2>
+                <button onClick={() => setUpdateInfo(null)} className="text-terminal-subtext hover:text-terminal-text text-lg leading-none">
+                  ×
+                </button>
+              </div>
+              {updateInfo.notes && (
+                <div className="overflow-y-auto max-h-[40vh] text-sm text-terminal-subtext whitespace-pre-wrap leading-relaxed border border-terminal-border rounded-lg p-4 bg-terminal-surface">
+                  {updateInfo.notes}
+                </div>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setUpdateInfo(null)}
+                  className="px-4 py-2 text-sm text-terminal-subtext hover:text-terminal-text transition-colors"
+                >
+                  Later
+                </button>
+                <button
+                  onClick={() => {
+                    window.electronAPI.openExternal(updateInfo.dmgUrl)
+                    setUpdateInfo(null)
+                  }}
+                  className="px-4 py-2 text-sm font-semibold bg-terminal-accent text-terminal-bg rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Download
+                </button>
+              </div>
             </div>
           </div>
         )}

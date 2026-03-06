@@ -62,7 +62,7 @@ export function useTerminal(sessionId: string | null) {
           if (!line) return callback(undefined)
           const text = line.translateToString()
           const links: { startIndex: number; length: number; text: string }[] = []
-          const re = /(?:^|[\s('"=])((\/[\w.@+\-][\w.@+\-/]*|~\/[\w.@+\-/]+)(?::(\d+)(?::(\d+))?)?)(?=[\s)'",:;]|$)/g
+          const re = /(?:^|[\s('"=])((\/[\w.@+\-][\w.@+\-/]*|~\/[\w.@+\-/]+))(?=[\s)'",:;]|$)/g
           let match: RegExpExecArray | null
           while ((match = re.exec(text)) !== null) {
             const fullMatch = match[1]
@@ -74,8 +74,7 @@ export function useTerminal(sessionId: string | null) {
             range: { start: { x: l.startIndex + 1, y: lineNumber }, end: { x: l.startIndex + l.length + 1, y: lineNumber } },
             text: l.text,
             activate(_event: MouseEvent, linkText: string) {
-              const cleanPath = linkText.replace(/:(\d+)(:\d+)?$/, '')
-              window.electronAPI.openPath(cleanPath)
+              window.electronAPI.openPath(linkText)
             }
           })))
         }
