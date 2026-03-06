@@ -87,8 +87,10 @@ export function useTerminal(sessionId: string | null) {
       let busyTimer: ReturnType<typeof setTimeout> | null = null
       let busyStartTimer: ReturnType<typeof setTimeout> | null = null
       let outputBytes = 0
+      let lastInputTime = 0
       let inOsc = false
-      const BUSY_THRESHOLD = 200 // bytes of output before showing busy indicator
+      const BUSY_THRESHOLD = 500 // bytes of output before showing busy indicator
+      const INPUT_ECHO_WINDOW = 150 // ms to ignore output after input (echo)
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -102,8 +104,9 @@ export function useTerminal(sessionId: string | null) {
         if (wasAtBottom) {
           terminal.scrollToBottom()
         }
-        // Track busy state — only mark busy after sustained output
-        outputBytes += data.length
+        // Track busy state — only mark busy after sustained output, ignore input echo
+        const isEcho = Date.now() - lastInputTime < INPUT_ECHO_WINDOW
+        if (!isEcho) outputBytes += data.length
         if (outputBytes >= BUSY_THRESHOLD && !useStore.getState().busySessionIds.has(sessionId)) {
           useStore.getState().markSessionBusy(sessionId)
         } else if (!busyStartTimer && outputBytes < BUSY_THRESHOLD) {
@@ -193,6 +196,7 @@ export function useTerminal(sessionId: string | null) {
       terminal.attachCustomKeyEventHandler((event) => {
         if (event.key === 'Enter' && event.shiftKey) {
           if (event.type === 'keydown') {
+            lastInputTime = Date.now()
             window.electronAPI.sendLocalPtyInput(sessionId, '\x1b\r')
           }
           return false
@@ -201,6 +205,7 @@ export function useTerminal(sessionId: string | null) {
       })
 
       terminal.onData((data) => {
+        lastInputTime = Date.now()
         window.electronAPI.sendLocalPtyInput(sessionId, data)
       })
 

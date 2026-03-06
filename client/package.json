@@ -1,6 +1,6 @@
 {
   "name": "moltty",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Remote terminal client",
   "main": "out/main/index.js",
   "scripts": {
