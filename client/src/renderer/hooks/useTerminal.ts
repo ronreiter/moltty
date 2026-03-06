@@ -108,8 +108,10 @@ export function useTerminal(sessionId: string | null) {
       // xterm.js sends \r for both Enter and Shift+Enter by default, but CLI tools
       // like Claude Code detect ESC-prefixed CR (meta key) as a newline signal.
       terminal.attachCustomKeyEventHandler((event) => {
-        if (event.type === 'keydown' && event.key === 'Enter' && event.shiftKey) {
-          window.electronAPI.sendLocalPtyInput(sessionId, '\x1b\r')
+        if (event.key === 'Enter' && event.shiftKey) {
+          if (event.type === 'keydown') {
+            window.electronAPI.sendLocalPtyInput(sessionId, '\x1b\r')
+          }
           return false
         }
         return true

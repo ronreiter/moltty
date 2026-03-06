@@ -60,7 +60,7 @@ export default function TabBar() {
                 >
                   ×
                 </button>
-                <span className="truncate max-w-[140px]">{session.name}</span>
+                <span className="truncate max-w-[140px]" title={session.name}>{session.name}</span>
               </div>
             )
           })}

@@ -89,7 +89,8 @@ export default function Sidebar() {
       <div className="px-3 pb-2">
         <button
           onClick={newSessionWithFolder}
-          className="w-full py-2 text-sm bg-terminal-accent/20 text-terminal-accent rounded-lg hover:bg-terminal-accent/30 transition-colors"
+          className="w-full py-2 text-sm text-terminal-accent rounded-lg border border-terminal-accent/50 hover:border-terminal-accent transition-colors"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--terminal-accent) 15%, transparent)' }}
         >
           + New Session
         </button>

@@ -63,7 +63,7 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
         />
       ) : (
         <div className="flex-1 min-w-0">
-          <span className="text-sm truncate block">{session.name}</span>
+          <span className="text-sm truncate block" title={session.name}>{session.name}</span>
           {session.workDir && (
             <span className="text-[10px] text-terminal-subtext truncate block">
               {session.workDir.replace(/^\/Users\/[^/]+/, '~')}
