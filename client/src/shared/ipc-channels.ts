@@ -6,6 +6,7 @@ export const IPC = {
   LIST_CLAUDE_SESSIONS: 'claude:list-sessions',
   PICK_FOLDER: 'dialog:pick-folder',
   OPEN_EXTERNAL: 'shell:open-external',
+  OPEN_PATH: 'shell:open-path',
   LOCAL_PTY_SPAWN: 'pty:spawn',
   LOCAL_PTY_INPUT: 'pty:input',
   LOCAL_PTY_RESIZE: 'pty:resize',

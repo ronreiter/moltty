@@ -34,6 +34,7 @@ declare global {
       listClaudeSessions: () => Promise<ClaudeSession[]>
       pickFolder: () => Promise<string | null>
       openExternal: (url: string) => Promise<void>
+      openPath: (filePath: string) => Promise<void>
       spawnLocalPty: (sessionId: string, command: string, workDir: string, loadZshrc?: boolean) => Promise<{ ok: boolean; reattached?: boolean; error?: string }>
       sendLocalPtyInput: (sessionId: string, data: string) => void
       resizeLocalPty: (sessionId: string, cols: number, rows: number) => void

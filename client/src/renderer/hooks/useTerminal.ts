@@ -75,8 +75,7 @@ export function useTerminal(sessionId: string | null) {
             text: l.text,
             activate(_event: MouseEvent, linkText: string) {
               const cleanPath = linkText.replace(/:(\d+)(:\d+)?$/, '')
-              const resolved = cleanPath.startsWith('~/') ? cleanPath : cleanPath
-              window.electronAPI.openExternal(`file://${resolved}`)
+              window.electronAPI.openPath(cleanPath)
             }
           })))
         }

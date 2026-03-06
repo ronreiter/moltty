@@ -173,6 +173,14 @@ ipcMain.handle(IPC.OPEN_EXTERNAL, (_event, url: string) => {
   shell.openExternal(url)
 })
 
+ipcMain.handle(IPC.OPEN_PATH, (_event, filePath: string) => {
+  let resolved = filePath
+  if (resolved.startsWith('~/')) {
+    resolved = join(homedir(), resolved.slice(2))
+  }
+  shell.openPath(resolved)
+})
+
 ipcMain.handle(IPC.PICK_FOLDER, async () => {
   if (!mainWindow) return null
   const result = await dialog.showOpenDialog(mainWindow, {

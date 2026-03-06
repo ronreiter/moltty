@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     >,
   pickFolder: () => ipcRenderer.invoke(IPC.PICK_FOLDER) as Promise<string | null>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL, url),
+  openPath: (filePath: string) => ipcRenderer.invoke(IPC.OPEN_PATH, filePath),
   spawnLocalPty: (sessionId: string, command: string, workDir: string, loadZshrc?: boolean) =>
     ipcRenderer.invoke(IPC.LOCAL_PTY_SPAWN, sessionId, command, workDir, loadZshrc) as Promise<{ ok: boolean; error?: string }>,
   sendLocalPtyInput: (sessionId: string, data: string) =>
