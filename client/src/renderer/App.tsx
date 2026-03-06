@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { useStore } from './store'
 import Sidebar from './components/Sidebar'
 import TabBar from './components/TabBar'
@@ -16,11 +16,27 @@ export default function App() {
   const settings = useStore((s) => s.settings)
   const settingsLoaded = useStore((s) => s.settingsLoaded)
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map())
+  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null)
 
   // Hydrate store from main process on mount
   useEffect(() => {
     hydrate()
   }, [hydrate])
+
+  // Check for updates on mount
+  useEffect(() => {
+    fetch('https://api.github.com/repos/ronreiter/moltty/releases/latest')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.tag_name) return
+        const latest = d.tag_name.replace(/^v/, '')
+        const current = __APP_VERSION__
+        if (latest !== current) {
+          setUpdateAvailable(latest)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Apply theme CSS variables
   useEffect(() => {
@@ -99,6 +115,30 @@ export default function App() {
       <div className="flex-1 flex flex-col">
         {/* Tab bar in the titlebar area */}
         <TabBar />
+
+        {updateAvailable && (
+          <div className="flex-shrink-0 px-4 py-2 bg-terminal-surface border-b border-terminal-border flex items-center justify-between">
+            <span className="text-xs text-terminal-text">
+              Moltty v{updateAvailable} is available.
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  window.electronAPI.openExternal('https://github.com/ronreiter/moltty/releases/latest')
+                }}
+                className="text-xs font-semibold text-terminal-accent hover:underline"
+              >
+                Download
+              </button>
+              <button
+                onClick={() => setUpdateAvailable(null)}
+                className="text-xs text-terminal-subtext hover:text-terminal-text"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {openTabs.length > 0 ? (
           <div className="flex-1 flex flex-col overflow-hidden">

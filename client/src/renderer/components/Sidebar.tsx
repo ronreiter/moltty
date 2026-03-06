@@ -79,7 +79,7 @@ export default function Sidebar() {
   const closedSessions = sessions.filter((s) => s.status === 'closed')
 
   return (
-    <div className="w-64 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
+    <div className="w-72 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
       {/* Titlebar drag area */}
       <div className="titlebar-drag h-10 flex items-center pl-20 pr-4 flex-shrink-0">
         <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty</span>

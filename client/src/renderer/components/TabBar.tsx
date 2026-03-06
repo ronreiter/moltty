@@ -45,7 +45,7 @@ export default function TabBar() {
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={handleDrop}
                 onClick={() => openTab(tabId)}
-                className={`titlebar-no-drag group flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`titlebar-no-drag group flex-1 min-w-0 flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? 'bg-terminal-bg text-terminal-accent'
                     : 'text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50'
@@ -60,7 +60,7 @@ export default function TabBar() {
                 >
                   ×
                 </button>
-                <span className="truncate max-w-[140px]" title={session.name}>{session.name}</span>
+                <span className="truncate" title={session.name}>{session.name}</span>
               </div>
             )
           })}
