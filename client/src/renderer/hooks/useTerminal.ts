@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { SearchAddon } from '@xterm/addon-search'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useStore } from '../store'
 import { CODING_TOOLS } from '../services/api'
 import { getTheme, type ThemeId } from '../services/themes'
@@ -48,6 +49,43 @@ export function useTerminal(sessionId: string | null) {
       } catch {
         // WebGL not available
       }
+
+      // Web links: Cmd+click to open URLs
+      const webLinksAddon = new WebLinksAddon((_event, uri) => {
+        window.electronAPI.openExternal(uri)
+      }, { urlRegex: /https?:\/\/[^\s"')\]}>]+/g })
+      terminal.loadAddon(webLinksAddon)
+
+      // File path links: Cmd+click to open local paths
+      const filePathRegex = /(?:^|\s)((?:\/[\w.@-]+)+(?::(\d+)(?::(\d+))?)?|~\/[\w.@/-]+(?::(\d+)(?::(\d+))?)?)(?=\s|$|[)'"\]])/
+      terminal.registerLinkProvider({
+        provideLinks(lineNumber, callback) {
+          const line = terminal.buffer.active.getLine(lineNumber - 1)
+          if (!line) return callback(undefined)
+          const text = line.translateToString()
+          const links: { startIndex: number; length: number; text: string }[] = []
+          let match: RegExpExecArray | null
+          const re = new RegExp(filePathRegex.source, 'g')
+          while ((match = re.exec(text)) !== null) {
+            const path = match[1]
+            const startIndex = match.index + match[0].indexOf(path)
+            links.push({
+              startIndex,
+              length: path.length,
+              text: path
+            })
+          }
+          callback(links.length > 0 ? links.map((l) => ({
+            range: { start: { x: l.startIndex + 1, y: lineNumber }, end: { x: l.startIndex + l.length + 1, y: lineNumber } },
+            text: l.text,
+            activate(_event: MouseEvent, text: string) {
+              // Open file in default editor via shell
+              const cleanPath = text.replace(/:(\d+)(:\d+)?$/, '')
+              window.electronAPI.openExternal(`file://${cleanPath.startsWith('~') ? cleanPath.replace('~', '') : cleanPath}`)
+            }
+          })) : undefined)
+        }
+      })
 
       terminalRef.current = terminal
       fitAddonRef.current = fitAddon
