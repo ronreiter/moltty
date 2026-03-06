@@ -101,10 +101,18 @@ export function useTerminal(sessionId: string | null) {
         // Mark activity on background tabs
         useStore.getState().markTabActivity(sessionId)
         // Mark session as busy (producing output), idle after 2s of silence
+        const wasBusy = useStore.getState().busySessionIds.has(sessionId)
         useStore.getState().markSessionBusy(sessionId)
         if (busyTimer) clearTimeout(busyTimer)
         busyTimer = setTimeout(() => {
           useStore.getState().markSessionIdle(sessionId)
+          // Notify when a background session finishes work (was busy, now idle)
+          if (useStore.getState().activeSessionId !== sessionId) {
+            const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+            new Notification('Moltty', {
+              body: `${session?.name || 'Session'} finished a task`
+            })
+          }
         }, 2000)
       })
 
@@ -114,7 +122,7 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().markSessionClosed(sessionId)
         terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
         // Send macOS notification if tab is in background
-        if (useStore.getState().activeSessionId !== sessionId && document.hidden) {
+        if (useStore.getState().activeSessionId !== sessionId) {
           const session = useStore.getState().sessions.find((s) => s.id === sessionId)
           new Notification('Moltty', {
             body: `${session?.name || 'Session'} has finished (exit ${exitCode})`
