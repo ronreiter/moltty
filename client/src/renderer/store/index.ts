@@ -39,9 +39,11 @@ interface AppState {
   activeSessionId: string | null
   openTabs: string[]
   loadedSessionIds: Set<string>
+  activeTabIds: Set<string>
   hydrated: boolean
   settings: MolttySettings | null
   settingsLoaded: boolean
+  fontSize: number
 
   hydrate: () => Promise<void>
   setSessions: (sessions: Session[]) => void
@@ -56,8 +58,11 @@ interface AppState {
   markSessionUnloaded: (id: string) => void
   markSessionClosed: (id: string) => void
   setToolSessionId: (id: string, toolSessionId: string) => void
+  markTabActivity: (id: string) => void
+  clearTabActivity: (id: string) => void
   reopenSession: (id: string) => void
   setSettings: (settings: MolttySettings) => void
+  setFontSize: (size: number) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -65,9 +70,11 @@ export const useStore = create<AppState>((set) => ({
   activeSessionId: null,
   openTabs: [],
   loadedSessionIds: new Set<string>(),
+  activeTabIds: new Set<string>(),
   hydrated: false,
   settings: null,
   settingsLoaded: false,
+  fontSize: 14,
 
   hydrate: async () => {
     try {
@@ -179,6 +186,22 @@ export const useStore = create<AppState>((set) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, toolSessionId } : s))
     })),
 
+  markTabActivity: (id) =>
+    set((state) => {
+      if (state.activeSessionId === id) return state
+      const next = new Set(state.activeTabIds)
+      next.add(id)
+      return { activeTabIds: next }
+    }),
+
+  clearTabActivity: (id) =>
+    set((state) => {
+      if (!state.activeTabIds.has(id)) return state
+      const next = new Set(state.activeTabIds)
+      next.delete(id)
+      return { activeTabIds: next }
+    }),
+
   reopenSession: (id) =>
     set((state) => {
       const old = state.sessions.find((s) => s.id === id)
@@ -202,7 +225,9 @@ export const useStore = create<AppState>((set) => ({
   setSettings: (settings) => {
     set({ settings })
     window.electronAPI?.saveSettings(JSON.stringify(settings))
-  }
+  },
+
+  setFontSize: (size) => set({ fontSize: Math.max(8, Math.min(24, size)) })
 }))
 
 // Save to main process on every state change (skip until hydrated)

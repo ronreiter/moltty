@@ -37,6 +37,7 @@ export default function TabBar() {
             const session = sessions.find((s) => s.id === tabId)
             if (!session) return null
             const isActive = tabId === activeSessionId
+            const hasActivity = useStore.getState().activeTabIds.has(tabId)
             return (
               <div
                 key={tabId}
@@ -61,6 +62,9 @@ export default function TabBar() {
                   ×
                 </button>
                 <span className="truncate" title={session.name}>{session.name}</span>
+                {hasActivity && !isActive && (
+                  <span className="w-2 h-2 rounded-full bg-terminal-accent flex-shrink-0" />
+                )}
               </div>
             )
           })}

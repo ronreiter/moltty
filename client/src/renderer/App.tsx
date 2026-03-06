@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar'
 import TabBar from './components/TabBar'
 import Terminal, { TerminalHandle } from './components/Terminal'
 import Onboarding from './components/Onboarding'
+import QuickSwitcher from './components/QuickSwitcher'
 import { getTheme, type ThemeId } from './services/themes'
 
 export default function App() {
@@ -17,6 +18,10 @@ export default function App() {
   const settingsLoaded = useStore((s) => s.settingsLoaded)
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map())
   const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string; dmgUrl: string } | null>(null)
+  const [showSwitcher, setShowSwitcher] = useState(false)
+  const clearTabActivity = useStore((s) => s.clearTabActivity)
+  const setFontSize = useStore((s) => s.setFontSize)
+  const fontSize = useStore((s) => s.fontSize)
 
   // Hydrate store from main process on mount
   useEffect(() => {
@@ -58,20 +63,43 @@ export default function App() {
     root.style.setProperty('--terminal-border', theme.ui.border)
   }, [settings?.theme])
 
-  // Focus terminal when active tab changes
+  // Focus terminal and clear activity when active tab changes
   useEffect(() => {
     if (activeSessionId) {
-      // Small delay to let visibility change take effect
+      clearTabActivity(activeSessionId)
       requestAnimationFrame(() => {
         terminalRefs.current.get(activeSessionId)?.focus()
       })
     }
-  }, [activeSessionId])
+  }, [activeSessionId, clearTabActivity])
 
-  // Cmd+Left / Cmd+Right to switch tabs
+  // Cmd+Left / Cmd+Right to switch tabs, Cmd+K for quick switcher, Cmd+/- for font size
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.metaKey) return
+
+      if (e.key === 'k') {
+        e.preventDefault()
+        setShowSwitcher((v) => !v)
+        return
+      }
+
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        setFontSize(useStore.getState().fontSize + 1)
+        return
+      }
+      if (e.key === '-') {
+        e.preventDefault()
+        setFontSize(useStore.getState().fontSize - 1)
+        return
+      }
+      if (e.key === '0') {
+        e.preventDefault()
+        setFontSize(14)
+        return
+      }
+
       const tabs = useStore.getState().openTabs
       const active = useStore.getState().activeSessionId
       if (tabs.length < 2 || !active) return
@@ -92,7 +120,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setActiveSession])
+  }, [setActiveSession, setFontSize])
 
   const setTerminalRef = useCallback((tabId: string, handle: TerminalHandle | null) => {
     if (handle) {
@@ -152,7 +180,7 @@ export default function App() {
                   }}
                   className="px-4 py-2 text-sm font-semibold bg-terminal-accent text-terminal-bg rounded-lg hover:opacity-90 transition-opacity"
                 >
-                  Download
+                  Download &amp; Install
                 </button>
               </div>
             </div>
@@ -197,6 +225,7 @@ export default function App() {
           </div>
         )}
       </div>
+      {showSwitcher && <QuickSwitcher onClose={() => setShowSwitcher(false)} />}
     </div>
   )
 }

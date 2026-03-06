@@ -17,6 +17,7 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
   const [loading, setLoading] = useState(true)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showScrollDown, setShowScrollDown] = useState(false)
   const { initTerminal, terminalRef, searchAddonRef } = useTerminal(sessionId)
 
   useImperativeHandle(ref, () => ({
@@ -29,6 +30,20 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
       setLoading(true)
       const cleanup = initTerminal(containerRef.current, () => setLoading(false))
       cleanupRef.current = cleanup || null
+
+      // Track scroll position
+      const term = terminalRef.current
+      if (term) {
+        const onScroll = term.onScroll(() => {
+          const buf = term.buffer.active
+          setShowScrollDown(buf.baseY > 0 && buf.viewportY < buf.baseY - 5)
+        })
+        const prevCleanup = cleanupRef.current
+        cleanupRef.current = () => {
+          onScroll.dispose()
+          prevCleanup?.()
+        }
+      }
     }
 
     return () => {
@@ -153,6 +168,18 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
             ×
           </button>
         </div>
+      )}
+      {showScrollDown && (
+        <button
+          onClick={() => {
+            terminalRef.current?.scrollToBottom()
+            setShowScrollDown(false)
+          }}
+          className="absolute bottom-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-terminal-surface border border-terminal-border text-terminal-subtext hover:text-terminal-text hover:bg-terminal-border transition-colors shadow-lg"
+          title="Scroll to bottom"
+        >
+          ↓
+        </button>
       )}
       <div ref={containerRef} className="w-full h-full" />
     </div>

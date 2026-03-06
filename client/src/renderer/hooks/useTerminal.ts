@@ -97,6 +97,8 @@ export function useTerminal(sessionId: string | null) {
         if (wasAtBottom) {
           terminal.scrollToBottom()
         }
+        // Mark activity on background tabs
+        useStore.getState().markTabActivity(sessionId)
       })
 
       const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {
@@ -104,6 +106,13 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().markSessionUnloaded(sessionId)
         useStore.getState().markSessionClosed(sessionId)
         terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
+        // Send macOS notification if tab is in background
+        if (useStore.getState().activeSessionId !== sessionId && document.hidden) {
+          const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+          new Notification('Moltty', {
+            body: `${session?.name || 'Session'} has finished (exit ${exitCode})`
+          })
+        }
       })
 
       const removeToolDetected = window.electronAPI.onToolSessionDetected?.((sid, toolId) => {
@@ -191,13 +200,18 @@ export function useTerminal(sessionId: string | null) {
     }
   }, [sessionId])
 
-  // Update terminal theme when settings change
+  // Update terminal theme and font size when settings change
   useEffect(() => {
     const unsubscribe = useStore.subscribe((state, prev) => {
-      if (state.settings?.theme !== prev.settings?.theme && terminalRef.current) {
+      if (!terminalRef.current) return
+      if (state.settings?.theme !== prev.settings?.theme) {
         const themeId = (state.settings?.theme || 'dark1') as ThemeId
         const appTheme = getTheme(themeId)
         terminalRef.current.options.theme = appTheme.terminal
+      }
+      if (state.fontSize !== prev.fontSize) {
+        terminalRef.current.options.fontSize = state.fontSize
+        fitAddonRef.current?.fit()
       }
     })
     return unsubscribe
