@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { useStore } from '../store'
+import iconUrl from '../../../resources/icon.png?url'
 
 export default function TabBar() {
   const openTabs = useStore((s) => s.openTabs)
@@ -101,11 +102,12 @@ export default function TabBar() {
             className="w-[360px] bg-terminal-bg border border-terminal-border rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
+            <img src={iconUrl} alt="Moltty" className="w-16 h-16 rounded-xl" />
             <h2 className="text-xl font-bold text-terminal-text">Moltty</h2>
             <p className="text-sm text-terminal-subtext text-center">
               A terminal client for AI coding tools.
             </p>
-            <p className="text-xs text-terminal-subtext">Version 1.0.0</p>
+            <p className="text-xs text-terminal-subtext">Version {__APP_VERSION__}</p>
             <button
               onClick={() => {
                 window.electronAPI.openExternal('https://github.com/ronreiter/moltty')
