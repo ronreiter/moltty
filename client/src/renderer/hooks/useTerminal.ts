@@ -85,6 +85,8 @@ export function useTerminal(sessionId: string | null) {
 
       let readyCalled = false
       let busyTimer: ReturnType<typeof setTimeout> | null = null
+      let busySince: number | null = null
+      let lastOutputHadPrompt = false
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -100,20 +102,26 @@ export function useTerminal(sessionId: string | null) {
         }
         // Mark activity on background tabs
         useStore.getState().markTabActivity(sessionId)
-        // Track busy state for pulsing dot
+        // Track busy state for pulsing dot and notifications
+        if (!busySince) busySince = Date.now()
         useStore.getState().markSessionBusy(sessionId)
+        // Check if output contains a prompt character (Claude: ❯, others: > $)
+        if (/[❯>$%]\s*$/.test(data) || data.includes('❯')) {
+          lastOutputHadPrompt = true
+        }
         if (busyTimer) clearTimeout(busyTimer)
         busyTimer = setTimeout(() => {
+          const duration = busySince ? Date.now() - busySince : 0
+          const hadPrompt = lastOutputHadPrompt
+          busySince = null
+          lastOutputHadPrompt = false
           useStore.getState().markSessionIdle(sessionId)
-        }, 2000)
-      })
-
-      // Notify on terminal bell (BEL \x07) when tab is in background
-      terminal.onBell(() => {
-        if (useStore.getState().activeSessionId !== sessionId) {
-          const session = useStore.getState().sessions.find((s) => s.id === sessionId)
-          window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} needs attention`)
-        }
+          // Notify on background tab when tool finished work (>10s busy, ended with prompt)
+          if (duration > 10000 && hadPrompt && useStore.getState().activeSessionId !== sessionId) {
+            const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+            window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} finished a task`)
+          }
+        }, 3000)
       })
 
       const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {
@@ -121,6 +129,11 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().markSessionUnloaded(sessionId)
         useStore.getState().markSessionClosed(sessionId)
         terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
+        // Notify on process exit when window is hidden
+        if (document.hidden) {
+          const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+          window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} exited (code ${exitCode})`)
+        }
       })
 
       const removeToolDetected = window.electronAPI.onToolSessionDetected?.((sid, toolId) => {
