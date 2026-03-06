@@ -5,14 +5,14 @@ module.exports = {
     extend: {
       colors: {
         terminal: {
-          bg: '#1e1e2e',
-          surface: '#313244',
-          text: '#cdd6f4',
-          subtext: '#a6adc8',
-          accent: '#89b4fa',
-          green: '#a6e3a1',
-          red: '#f38ba8',
-          border: '#45475a'
+          bg: 'var(--terminal-bg)',
+          surface: 'var(--terminal-surface)',
+          text: 'var(--terminal-text)',
+          subtext: 'var(--terminal-subtext)',
+          accent: 'var(--terminal-accent)',
+          green: 'var(--terminal-green)',
+          red: 'var(--terminal-red)',
+          border: 'var(--terminal-border)'
         }
       }
     }

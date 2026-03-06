@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar'
 import TabBar from './components/TabBar'
 import Terminal, { TerminalHandle } from './components/Terminal'
 import Onboarding from './components/Onboarding'
+import { getTheme, type ThemeId } from './services/themes'
 
 export default function App() {
   const activeSessionId = useStore((s) => s.activeSessionId)
@@ -20,6 +21,21 @@ export default function App() {
   useEffect(() => {
     hydrate()
   }, [hydrate])
+
+  // Apply theme CSS variables
+  useEffect(() => {
+    const themeId = (settings?.theme || 'dark1') as ThemeId
+    const theme = getTheme(themeId)
+    const root = document.documentElement
+    root.style.setProperty('--terminal-bg', theme.ui.bg)
+    root.style.setProperty('--terminal-surface', theme.ui.surface)
+    root.style.setProperty('--terminal-text', theme.ui.text)
+    root.style.setProperty('--terminal-subtext', theme.ui.subtext)
+    root.style.setProperty('--terminal-accent', theme.ui.accent)
+    root.style.setProperty('--terminal-green', theme.ui.green)
+    root.style.setProperty('--terminal-red', theme.ui.red)
+    root.style.setProperty('--terminal-border', theme.ui.border)
+  }, [settings?.theme])
 
   // Focus terminal when active tab changes
   useEffect(() => {

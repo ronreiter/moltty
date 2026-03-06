@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useStore } from '../store'
 import { CODING_TOOLS, type CodingTool, type MolttySettings } from '../services/api'
+import { THEMES, type ThemeId } from '../services/themes'
 
 export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const [selected, setSelected] = useState<CodingTool>(settings?.codingTool || 'claude')
   const [loadZshrc, setLoadZshrc] = useState(settings?.loadZshrc ?? true)
+  const [theme, setTheme] = useState<ThemeId>((settings?.theme as ThemeId) || 'dark1')
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -17,7 +19,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   }, [onClose])
 
   const handleSave = () => {
-    const newSettings: MolttySettings = { codingTool: selected, loadZshrc }
+    const newSettings: MolttySettings = { codingTool: selected, loadZshrc, theme }
     setSettings(newSettings)
     onClose()
   }
@@ -50,6 +52,31 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
               >
                 <span className="text-sm font-semibold">{tool.name}</span>
                 <span className="text-xs text-terminal-subtext">{tool.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm text-terminal-subtext mb-3">Theme</p>
+          <div className="grid grid-cols-3 gap-3">
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
+                  theme === t.id
+                    ? 'border-terminal-accent bg-terminal-accent/10 text-terminal-accent'
+                    : 'border-terminal-border bg-terminal-surface text-terminal-text hover:border-terminal-accent/50'
+                }`}
+              >
+                <div className="flex gap-1">
+                  <div className="w-4 h-4 rounded-full border border-black/20" style={{ background: t.ui.bg }} />
+                  <div className="w-4 h-4 rounded-full border border-black/20" style={{ background: t.ui.surface }} />
+                  <div className="w-4 h-4 rounded-full border border-black/20" style={{ background: t.ui.accent }} />
+                </div>
+                <span className="text-xs font-semibold">{t.name}</span>
+                <span className="text-[10px] text-terminal-subtext">{t.description}</span>
               </button>
             ))}
           </div>

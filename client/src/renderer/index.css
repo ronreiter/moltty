@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --terminal-bg: #1e1e2e;
+  --terminal-surface: #313244;
+  --terminal-text: #cdd6f4;
+  --terminal-subtext: #a6adc8;
+  --terminal-accent: #89b4fa;
+  --terminal-green: #a6e3a1;
+  --terminal-red: #f38ba8;
+  --terminal-border: #45475a;
+}
+
 body {
   margin: 0;
   padding: 0;

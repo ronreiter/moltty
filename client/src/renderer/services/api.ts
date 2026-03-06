@@ -11,6 +11,7 @@ export type CodingTool = 'claude' | 'opencode' | 'gemini' | 'codex' | 'aider' | 
 export type MolttySettings = {
   codingTool: CodingTool
   loadZshrc: boolean
+  theme?: string
 }
 
 export const CODING_TOOLS: { id: CodingTool; name: string; command: string; description: string; resumeArg?: string }[] = [
