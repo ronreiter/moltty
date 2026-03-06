@@ -108,16 +108,19 @@ export function useTerminal(sessionId: string | null) {
         }, 2000)
       })
 
+      // Notify on terminal bell (BEL \x07) when tab is in background
+      terminal.onBell(() => {
+        if (useStore.getState().activeSessionId !== sessionId) {
+          const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+          window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} needs attention`)
+        }
+      })
+
       const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {
         if (sid !== sessionId) return
         useStore.getState().markSessionUnloaded(sessionId)
         useStore.getState().markSessionClosed(sessionId)
         terminal.write(`\r\n\x1b[31mProcess exited (code ${exitCode}).\x1b[0m\r\n`)
-        // Send macOS notification when process exits and window is not focused
-        if (document.hidden) {
-          const session = useStore.getState().sessions.find((s) => s.id === sessionId)
-          window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} has finished (exit ${exitCode})`)
-        }
       })
 
       const removeToolDetected = window.electronAPI.onToolSessionDetected?.((sid, toolId) => {
