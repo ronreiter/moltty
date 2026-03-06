@@ -84,6 +84,7 @@ export function useTerminal(sessionId: string | null) {
       fitAddonRef.current = fitAddon
 
       let readyCalled = false
+      let busyTimer: ReturnType<typeof setTimeout> | null = null
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -99,6 +100,12 @@ export function useTerminal(sessionId: string | null) {
         }
         // Mark activity on background tabs
         useStore.getState().markTabActivity(sessionId)
+        // Mark session as busy (producing output), idle after 2s of silence
+        useStore.getState().markSessionBusy(sessionId)
+        if (busyTimer) clearTimeout(busyTimer)
+        busyTimer = setTimeout(() => {
+          useStore.getState().markSessionIdle(sessionId)
+        }, 2000)
       })
 
       const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {

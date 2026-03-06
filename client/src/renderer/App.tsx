@@ -67,6 +67,7 @@ export default function App() {
   useEffect(() => {
     if (activeSessionId) {
       clearTabActivity(activeSessionId)
+      window.electronAPI?.setActiveSessionMain(activeSessionId)
       requestAnimationFrame(() => {
         terminalRefs.current.get(activeSessionId)?.focus()
       })

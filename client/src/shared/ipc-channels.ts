@@ -14,5 +14,7 @@ export const IPC = {
   LOCAL_PTY_OUTPUT: 'pty:output',
   LOCAL_PTY_EXIT: 'pty:exit',
   CLAUDE_SESSION_DETECTED: 'claude:session-detected',
-  TOOL_SESSION_DETECTED: 'tool:session-detected'
+  TOOL_SESSION_DETECTED: 'tool:session-detected',
+  FILE_DROP: 'file:drop',
+  SET_ACTIVE_SESSION: 'session:set-active'
 } as const

@@ -42,6 +42,9 @@ declare global {
       onLocalPtyOutput: (cb: (sessionId: string, data: string) => void) => () => void
       onLocalPtyExit: (cb: (sessionId: string, exitCode: number) => void) => () => void
       onToolSessionDetected: (cb: (sessionId: string, toolSessionId: string) => void) => () => void
+      sendFileDrop: (text: string) => void
+      setActiveSessionMain: (sessionId: string) => void
+      getPathForFile: (file: File) => string
     }
   }
 }

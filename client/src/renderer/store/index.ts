@@ -40,6 +40,7 @@ interface AppState {
   openTabs: string[]
   loadedSessionIds: Set<string>
   activeTabIds: Set<string>
+  busySessionIds: Set<string>
   hydrated: boolean
   settings: MolttySettings | null
   settingsLoaded: boolean
@@ -60,6 +61,8 @@ interface AppState {
   setToolSessionId: (id: string, toolSessionId: string) => void
   markTabActivity: (id: string) => void
   clearTabActivity: (id: string) => void
+  markSessionBusy: (id: string) => void
+  markSessionIdle: (id: string) => void
   reopenSession: (id: string) => void
   setSettings: (settings: MolttySettings) => void
   setFontSize: (size: number) => void
@@ -71,6 +74,7 @@ export const useStore = create<AppState>((set) => ({
   openTabs: [],
   loadedSessionIds: new Set<string>(),
   activeTabIds: new Set<string>(),
+  busySessionIds: new Set<string>(),
   hydrated: false,
   settings: null,
   settingsLoaded: false,
@@ -151,7 +155,11 @@ export const useStore = create<AppState>((set) => ({
         activeSessionId =
           openTabs.length > 0 ? openTabs[Math.min(idx, openTabs.length - 1)] : null
       }
-      return { openTabs, activeSessionId }
+      return {
+        openTabs,
+        activeSessionId,
+        sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'closed' as const } : s))
+      }
     }),
 
   reorderTabs: (fromIndex, toIndex) =>
@@ -200,6 +208,22 @@ export const useStore = create<AppState>((set) => ({
       const next = new Set(state.activeTabIds)
       next.delete(id)
       return { activeTabIds: next }
+    }),
+
+  markSessionBusy: (id) =>
+    set((state) => {
+      if (state.busySessionIds.has(id)) return state
+      const next = new Set(state.busySessionIds)
+      next.add(id)
+      return { busySessionIds: next }
+    }),
+
+  markSessionIdle: (id) =>
+    set((state) => {
+      if (!state.busySessionIds.has(id)) return state
+      const next = new Set(state.busySessionIds)
+      next.delete(id)
+      return { busySessionIds: next }
     }),
 
   reopenSession: (id) =>

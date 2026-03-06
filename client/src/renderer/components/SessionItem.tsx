@@ -11,6 +11,7 @@ interface Props {
 
 export default function SessionItem({ session, isActive, onClick, onRename, onDelete }: Props) {
   const isLoaded = useStore((s) => s.loadedSessionIds.has(session.id))
+  const isBusy = useStore((s) => s.busySessionIds.has(session.id))
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(session.name)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -46,7 +47,7 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
         isActive ? 'bg-terminal-bg text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
       }`}
     >
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor} ${isBusy ? 'animate-pulse' : ''}`} />
 
       {editing ? (
         <input

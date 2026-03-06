@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '../shared/ipc-channels'
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -40,5 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: Electron.IpcRendererEvent, sessionId: string, toolSessionId: string) => cb(sessionId, toolSessionId)
     ipcRenderer.on(IPC.TOOL_SESSION_DETECTED, listener)
     return () => ipcRenderer.removeListener(IPC.TOOL_SESSION_DETECTED, listener)
-  }
+  },
+  sendFileDrop: (text: string) => ipcRenderer.send(IPC.FILE_DROP, text),
+  setActiveSessionMain: (sessionId: string) => ipcRenderer.send(IPC.SET_ACTIVE_SESSION, sessionId),
+  getPathForFile: (file: File) => webUtils.getPathForFile(file)
 })

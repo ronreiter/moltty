@@ -43,14 +43,21 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
+  // Prevent Electron from navigating when files are dropped
+  mainWindow.webContents.on('will-navigate', (event) => {
+    event.preventDefault()
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
 }
 
+const isDev = !!process.env.ELECTRON_RENDERER_URL
+
 // IPC handlers — session persistence
 function getSessionsPath(): string {
-  const dir = join(app.getPath('userData'), 'moltty-data')
+  const dir = join(app.getPath('userData'), isDev ? 'moltty-data-dev' : 'moltty-data')
   mkdirSync(dir, { recursive: true })
   return join(dir, 'sessions.json')
 }
@@ -72,9 +79,9 @@ ipcMain.handle(IPC.SAVE_SESSIONS, (_event, data: string) => {
   }
 })
 
-// Settings persistence (~/.moltty.settings)
+// Settings persistence
 function getSettingsPath(): string {
-  return join(homedir(), '.moltty.settings')
+  return join(homedir(), isDev ? '.moltty-dev.settings' : '.moltty.settings')
 }
 
 ipcMain.handle(IPC.LOAD_SETTINGS, () => {
@@ -317,6 +324,19 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
 
 ipcMain.on(IPC.LOCAL_PTY_INPUT, (_event, sessionId: string, data: string) => {
   localPtySessions.get(sessionId)?.write(data)
+})
+
+// Track active session for file drops
+let activeSessionIdForDrop: string | null = null
+ipcMain.on(IPC.SET_ACTIVE_SESSION, (_event, sessionId: string) => {
+  activeSessionIdForDrop = sessionId
+})
+
+// File drop — renderer sends escaped paths, we forward to active PTY
+ipcMain.on(IPC.FILE_DROP, (_event, text: string) => {
+  if (activeSessionIdForDrop) {
+    localPtySessions.get(activeSessionIdForDrop)?.write(text)
+  }
 })
 
 ipcMain.on(IPC.LOCAL_PTY_RESIZE, (_event, sessionId: string, cols: number, rows: number) => {

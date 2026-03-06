@@ -67,11 +67,9 @@ export default function Sidebar() {
       const folder = await window.electronAPI.pickFolder()
       if (folder) {
         createSession(shortPath(folder), undefined, folder)
-      } else {
-        createSession('New Session', undefined, '~')
       }
     } catch {
-      createSession('New Session', undefined, '~')
+      // dialog failed, do nothing
     }
   }
 
@@ -82,7 +80,7 @@ export default function Sidebar() {
     <div className="w-72 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
       {/* Titlebar drag area */}
       <div className="titlebar-drag h-10 flex items-center pl-20 pr-4 flex-shrink-0">
-        <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty</span>
+        <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty{location.port ? ' (Dev)' : ''}</span>
       </div>
 
       {/* New session button */}
