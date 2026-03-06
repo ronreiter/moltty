@@ -85,8 +85,7 @@ export function useTerminal(sessionId: string | null) {
 
       let readyCalled = false
       let busyTimer: ReturnType<typeof setTimeout> | null = null
-      let busySince: number | null = null
-      let lastOutputHadPrompt = false
+      let inOsc = false
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -102,26 +101,28 @@ export function useTerminal(sessionId: string | null) {
         }
         // Mark activity on background tabs
         useStore.getState().markTabActivity(sessionId)
-        // Track busy state for pulsing dot and notifications
-        if (!busySince) busySince = Date.now()
+        // Track busy state for pulsing dot
         useStore.getState().markSessionBusy(sessionId)
-        // Check if output contains a prompt character (Claude: ❯, others: > $)
-        if (/[❯>$%]\s*$/.test(data) || data.includes('❯')) {
-          lastOutputHadPrompt = true
-        }
         if (busyTimer) clearTimeout(busyTimer)
         busyTimer = setTimeout(() => {
-          const duration = busySince ? Date.now() - busySince : 0
-          const hadPrompt = lastOutputHadPrompt
-          busySince = null
-          lastOutputHadPrompt = false
           useStore.getState().markSessionIdle(sessionId)
-          // Notify on background tab when tool finished work (>10s busy, ended with prompt)
-          if (duration > 10000 && hadPrompt && useStore.getState().activeSessionId !== sessionId) {
-            const session = useStore.getState().sessions.find((s) => s.id === sessionId)
-            window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} finished a task`)
+        }, 2000)
+        // Detect standalone BEL (\x07) not inside OSC sequences for notifications
+        for (let i = 0; i < data.length; i++) {
+          const ch = data.charCodeAt(i)
+          if (ch === 0x1b && i + 1 < data.length && data.charCodeAt(i + 1) === 0x5d) {
+            inOsc = true // ESC ] starts OSC
+            i++ // skip ]
+          } else if (inOsc && ch === 0x07) {
+            inOsc = false // BEL terminates OSC — ignore
+          } else if (ch === 0x07 && !inOsc) {
+            // Standalone BEL — notify if background tab
+            if (useStore.getState().activeSessionId !== sessionId) {
+              const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+              window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} needs attention`)
+            }
           }
-        }, 3000)
+        }
       })
 
       const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {
