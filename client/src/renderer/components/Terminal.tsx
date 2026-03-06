@@ -87,8 +87,25 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
     }
   }, [searchQuery, searchOpen, searchAddonRef])
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const files = e.dataTransfer.files
+    if (files.length > 0 && sessionId) {
+      const paths = Array.from(files).map((f) => (f as any).path as string).filter(Boolean)
+      if (paths.length > 0) {
+        const text = paths.join(' ')
+        window.electronAPI.sendLocalPtyInput(sessionId, text)
+      }
+    }
+  }, [sessionId])
+
   return (
-    <div className="w-full h-full relative" style={{ padding: '4px' }}>
+    <div className="w-full h-full relative" style={{ padding: '4px' }} onDragOver={handleDragOver} onDrop={handleDrop}>
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center z-10 bg-terminal-bg">
           <div className="flex flex-col items-center gap-3">
