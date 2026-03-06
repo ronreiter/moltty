@@ -50,40 +50,35 @@ export function useTerminal(sessionId: string | null) {
         // WebGL not available
       }
 
-      // Web links: Cmd+click to open URLs
-      const webLinksAddon = new WebLinksAddon((_event, uri) => {
+      // Web links: click to open URLs in browser
+      terminal.loadAddon(new WebLinksAddon((_event, uri) => {
         window.electronAPI.openExternal(uri)
-      }, { urlRegex: /https?:\/\/[^\s"')\]}>]+/g })
-      terminal.loadAddon(webLinksAddon)
+      }))
 
-      // File path links: Cmd+click to open local paths
-      const filePathRegex = /(?:^|\s)((?:\/[\w.@-]+)+(?::(\d+)(?::(\d+))?)?|~\/[\w.@/-]+(?::(\d+)(?::(\d+))?)?)(?=\s|$|[)'"\]])/
+      // File path links: click to open local paths
       terminal.registerLinkProvider({
         provideLinks(lineNumber, callback) {
           const line = terminal.buffer.active.getLine(lineNumber - 1)
           if (!line) return callback(undefined)
           const text = line.translateToString()
           const links: { startIndex: number; length: number; text: string }[] = []
+          const re = /(?:^|[\s('"=])((\/[\w.@+\-][\w.@+\-/]*|~\/[\w.@+\-/]+)(?::(\d+)(?::(\d+))?)?)(?=[\s)'",:;]|$)/g
           let match: RegExpExecArray | null
-          const re = new RegExp(filePathRegex.source, 'g')
           while ((match = re.exec(text)) !== null) {
-            const path = match[1]
-            const startIndex = match.index + match[0].indexOf(path)
-            links.push({
-              startIndex,
-              length: path.length,
-              text: path
-            })
+            const fullMatch = match[1]
+            const idx = text.indexOf(fullMatch, match.index)
+            links.push({ startIndex: idx, length: fullMatch.length, text: fullMatch })
           }
-          callback(links.length > 0 ? links.map((l) => ({
+          if (links.length === 0) return callback(undefined)
+          callback(links.map((l) => ({
             range: { start: { x: l.startIndex + 1, y: lineNumber }, end: { x: l.startIndex + l.length + 1, y: lineNumber } },
             text: l.text,
-            activate(_event: MouseEvent, text: string) {
-              // Open file in default editor via shell
-              const cleanPath = text.replace(/:(\d+)(:\d+)?$/, '')
-              window.electronAPI.openExternal(`file://${cleanPath.startsWith('~') ? cleanPath.replace('~', '') : cleanPath}`)
+            activate(_event: MouseEvent, linkText: string) {
+              const cleanPath = linkText.replace(/:(\d+)(:\d+)?$/, '')
+              const resolved = cleanPath.startsWith('~/') ? cleanPath : cleanPath
+              window.electronAPI.openExternal(`file://${resolved}`)
             }
-          })) : undefined)
+          })))
         }
       })
 
