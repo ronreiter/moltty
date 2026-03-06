@@ -19,6 +19,7 @@ export default function App() {
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map())
   const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string; dmgUrl: string } | null>(null)
   const [showSwitcher, setShowSwitcher] = useState(false)
+  const [gitBranch, setGitBranch] = useState<string | null>(null)
   const clearTabActivity = useStore((s) => s.clearTabActivity)
   const setFontSize = useStore((s) => s.setFontSize)
   const fontSize = useStore((s) => s.fontSize)
@@ -73,6 +74,16 @@ export default function App() {
       })
     }
   }, [activeSessionId, clearTabActivity])
+
+  // Fetch git branch for active session
+  useEffect(() => {
+    setGitBranch(null)
+    if (activeSession?.workDir) {
+      window.electronAPI?.getGitBranch(activeSession.workDir).then((branch) => {
+        setGitBranch(branch)
+      })
+    }
+  }, [activeSession?.workDir])
 
   // Cmd+Left / Cmd+Right to switch tabs, Cmd+K for quick switcher, Cmd+/- for font size
   useEffect(() => {
@@ -190,12 +201,17 @@ export default function App() {
 
         {openTabs.length > 0 ? (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* CWD header */}
+            {/* CWD header with git branch */}
             {activeSession?.workDir && (
-              <div className="flex-shrink-0 px-4 py-1.5 bg-terminal-surface border-b border-terminal-border">
+              <div className="flex-shrink-0 px-4 py-1.5 bg-terminal-surface border-b border-terminal-border flex items-center gap-3">
                 <span className="text-xs text-terminal-subtext font-mono">
                   {activeSession.workDir.replace(/^\/Users\/[^/]+/, '~')}
                 </span>
+                {gitBranch && (
+                  <span className="text-xs text-terminal-accent font-mono">
+                    {gitBranch}
+                  </span>
+                )}
               </div>
             )}
 

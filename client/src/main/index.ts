@@ -332,6 +332,26 @@ ipcMain.on(IPC.SET_ACTIVE_SESSION, (_event, sessionId: string) => {
   activeSessionIdForDrop = sessionId
 })
 
+// Read git branch from .git/HEAD (no subprocess)
+ipcMain.handle(IPC.GET_GIT_BRANCH, (_event, workDir: string) => {
+  let dir = workDir
+  if (dir.startsWith('~/')) dir = join(homedir(), dir.slice(2))
+  // Walk up to find .git
+  let current = dir
+  for (let i = 0; i < 20; i++) {
+    try {
+      const head = readFileSync(join(current, '.git', 'HEAD'), 'utf-8').trim()
+      if (head.startsWith('ref: refs/heads/')) return head.slice(16)
+      return head.slice(0, 8) // detached HEAD
+    } catch {
+      const parent = join(current, '..')
+      if (parent === current) break
+      current = parent
+    }
+  }
+  return null
+})
+
 // Native notifications
 ipcMain.on(IPC.SHOW_NOTIFICATION, (_event, title: string, body: string) => {
   new Notification({ title, body }).show()

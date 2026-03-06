@@ -17,5 +17,6 @@ export const IPC = {
   TOOL_SESSION_DETECTED: 'tool:session-detected',
   FILE_DROP: 'file:drop',
   SET_ACTIVE_SESSION: 'session:set-active',
-  SHOW_NOTIFICATION: 'app:show-notification'
+  SHOW_NOTIFICATION: 'app:show-notification',
+  GET_GIT_BRANCH: 'git:get-branch'
 } as const
