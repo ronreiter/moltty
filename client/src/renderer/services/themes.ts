@@ -25,7 +25,7 @@ export const THEMES: AppTheme[] = [
     name: 'Catppuccin',
     description: 'Dark blue',
     terminal: {
-      background: '#1e1e2e',
+      background: '#232334',
       foreground: '#cdd6f4',
       cursor: '#f5e0dc',
       selectionBackground: '#585b70',

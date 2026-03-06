@@ -28,3 +28,22 @@ body {
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Pulsing dot: transparent to green */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Indeterminate progress bar */
+@keyframes progress {
+  0% { transform: translateX(-100%); width: 40%; }
+  50% { width: 60%; }
+  100% { transform: translateX(250%); width: 40%; }
+}
+.animate-progress {
+  animation: progress 1.5s ease-in-out infinite;
+}

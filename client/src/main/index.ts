@@ -354,7 +354,10 @@ ipcMain.handle(IPC.GET_GIT_BRANCH, (_event, workDir: string) => {
 
 // Native notifications
 ipcMain.on(IPC.SHOW_NOTIFICATION, (_event, title: string, body: string) => {
-  new Notification({ title, body }).show()
+  console.log(`NOTIFICATION: supported=${Notification.isSupported()} title=${title} body=${body}`)
+  if (Notification.isSupported()) {
+    new Notification({ title, body }).show()
+  }
 })
 
 // File drop — renderer sends escaped paths, we forward to active PTY

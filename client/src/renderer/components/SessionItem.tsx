@@ -47,7 +47,7 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
         isActive ? 'bg-terminal-bg text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
       }`}
     >
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor} ${isBusy ? 'animate-pulse' : ''}`} />
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor} ${isBusy ? 'animate-pulse-dot' : ''}`} />
 
       {editing ? (
         <input

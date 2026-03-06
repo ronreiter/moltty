@@ -5,6 +5,7 @@ export default function TabBar() {
   const openTabs = useStore((s) => s.openTabs)
   const activeSessionId = useStore((s) => s.activeSessionId)
   const sessions = useStore((s) => s.sessions)
+  const activeTabIds = useStore((s) => s.activeTabIds)
   const openTab = useStore((s) => s.openTab)
   const closeTab = useStore((s) => s.closeTab)
   const reorderTabs = useStore((s) => s.reorderTabs)
@@ -37,7 +38,7 @@ export default function TabBar() {
             const session = sessions.find((s) => s.id === tabId)
             if (!session) return null
             const isActive = tabId === activeSessionId
-            const hasActivity = useStore.getState().activeTabIds.has(tabId)
+            const hasActivity = activeTabIds.has(tabId)
             return (
               <div
                 key={tabId}

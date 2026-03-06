@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react'
 import { useTerminal } from '../hooks/useTerminal'
+import { useStore } from '../store'
 import '@xterm/xterm/css/xterm.css'
 
 export interface TerminalHandle {
@@ -10,14 +11,19 @@ interface Props {
   sessionId: string
 }
 
+// Track loaded sessions outside React to survive HMR and re-renders
+const loadedSessions = new Set<string>()
+
 const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const initializedRef = useRef(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(loadedSessions.has(sessionId))
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showScrollDown, setShowScrollDown] = useState(false)
+  const isBusy = useStore((s) => s.busySessionIds.has(sessionId))
   const { initTerminal, terminalRef, searchAddonRef } = useTerminal(sessionId)
 
   useImperativeHandle(ref, () => ({
@@ -25,10 +31,12 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
   }))
 
   useEffect(() => {
-    if (containerRef.current) {
-      cleanupRef.current?.()
-      setLoading(true)
-      const cleanup = initTerminal(containerRef.current, () => setLoading(false))
+    if (containerRef.current && !initializedRef.current) {
+      initializedRef.current = true
+      const cleanup = initTerminal(containerRef.current, () => {
+        loadedSessions.add(sessionId)
+        setLoaded(true)
+      })
       cleanupRef.current = cleanup || null
 
       // Track scroll position
@@ -49,6 +57,7 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
     return () => {
       cleanupRef.current?.()
       cleanupRef.current = null
+      initializedRef.current = false
     }
   }, [sessionId, initTerminal])
 
@@ -104,7 +113,12 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
 
   return (
     <div className="w-full h-full relative" style={{ padding: '4px' }}>
-      {loading && (
+      {isBusy && loaded && (
+        <div className="absolute top-0 left-0 right-0 h-[2px] z-10 overflow-hidden">
+          <div className="h-full bg-terminal-accent animate-progress" />
+        </div>
+      )}
+      {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center z-10 bg-terminal-bg">
           <div className="flex flex-col items-center gap-3">
             <div className="w-5 h-5 border-2 border-terminal-accent/30 border-t-terminal-accent rounded-full animate-spin" />

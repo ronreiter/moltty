@@ -85,7 +85,10 @@ export function useTerminal(sessionId: string | null) {
 
       let readyCalled = false
       let busyTimer: ReturnType<typeof setTimeout> | null = null
+      let busyStartTimer: ReturnType<typeof setTimeout> | null = null
+      let outputBytes = 0
       let inOsc = false
+      const BUSY_THRESHOLD = 200 // bytes of output before showing busy indicator
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -99,13 +102,31 @@ export function useTerminal(sessionId: string | null) {
         if (wasAtBottom) {
           terminal.scrollToBottom()
         }
-        // Mark activity on background tabs
-        useStore.getState().markTabActivity(sessionId)
-        // Track busy state for pulsing dot
-        useStore.getState().markSessionBusy(sessionId)
+        // Track busy state — only mark busy after sustained output
+        outputBytes += data.length
+        if (outputBytes >= BUSY_THRESHOLD && !useStore.getState().busySessionIds.has(sessionId)) {
+          useStore.getState().markSessionBusy(sessionId)
+        } else if (!busyStartTimer && outputBytes < BUSY_THRESHOLD) {
+          busyStartTimer = setTimeout(() => {
+            busyStartTimer = null
+            if (outputBytes >= BUSY_THRESHOLD) {
+              useStore.getState().markSessionBusy(sessionId)
+            }
+          }, 500)
+        }
         if (busyTimer) clearTimeout(busyTimer)
         busyTimer = setTimeout(() => {
+          const wasBusy = useStore.getState().busySessionIds.has(sessionId)
+          outputBytes = 0
           useStore.getState().markSessionIdle(sessionId)
+          // Mark tab activity and notify when a real task finishes (was busy, now idle)
+          if (wasBusy && useStore.getState().activeSessionId !== sessionId) {
+            useStore.getState().markTabActivity(sessionId)
+            if (useStore.getState().settings?.notifications !== false) {
+              const session = useStore.getState().sessions.find((s) => s.id === sessionId)
+              window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} finished a task`)
+            }
+          }
         }, 2000)
         // Detect standalone BEL (\x07) not inside OSC sequences for notifications
         for (let i = 0; i < data.length; i++) {

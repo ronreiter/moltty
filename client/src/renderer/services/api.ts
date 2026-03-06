@@ -12,6 +12,7 @@ export type MolttySettings = {
   codingTool: CodingTool
   loadZshrc: boolean
   theme?: string
+  notifications?: boolean
 }
 
 export const CODING_TOOLS: { id: CodingTool; name: string; command: string; description: string; resumeArg?: string }[] = [

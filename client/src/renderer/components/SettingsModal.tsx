@@ -8,6 +8,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const setSettings = useStore((s) => s.setSettings)
   const [selected, setSelected] = useState<CodingTool>(settings?.codingTool || 'claude')
   const [loadZshrc, setLoadZshrc] = useState(settings?.loadZshrc ?? true)
+  const [notifications, setNotifications] = useState(settings?.notifications ?? true)
   const [theme, setTheme] = useState<ThemeId>((settings?.theme as ThemeId) || 'dark1')
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   }, [onClose])
 
   const handleSave = () => {
-    const newSettings: MolttySettings = { codingTool: selected, loadZshrc, theme }
+    const newSettings: MolttySettings = { codingTool: selected, loadZshrc, notifications, theme }
     setSettings(newSettings)
     onClose()
   }
@@ -92,6 +93,19 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
           <div className="flex flex-col">
             <span className="text-sm text-terminal-text">Load .zshrc on startup</span>
             <span className="text-xs text-terminal-subtext">Source your shell config before launching the tool</span>
+          </div>
+        </label>
+
+        <label className="flex items-center gap-3 px-4 py-3 rounded-lg bg-terminal-surface border border-terminal-border cursor-pointer">
+          <input
+            type="checkbox"
+            checked={notifications}
+            onChange={(e) => setNotifications(e.target.checked)}
+            className="w-4 h-4 rounded accent-terminal-accent"
+          />
+          <div className="flex flex-col">
+            <span className="text-sm text-terminal-text">Notifications</span>
+            <span className="text-xs text-terminal-subtext">Notify when a background tab finishes a task</span>
           </div>
         </label>
 
