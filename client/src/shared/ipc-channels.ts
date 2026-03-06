@@ -16,5 +16,6 @@ export const IPC = {
   CLAUDE_SESSION_DETECTED: 'claude:session-detected',
   TOOL_SESSION_DETECTED: 'tool:session-detected',
   FILE_DROP: 'file:drop',
-  SET_ACTIVE_SESSION: 'session:set-active'
+  SET_ACTIVE_SESSION: 'session:set-active',
+  SHOW_NOTIFICATION: 'app:show-notification'
 } as const

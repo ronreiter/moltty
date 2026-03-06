@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage, Notification } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
 import { readdirSync, readFileSync, writeFileSync, statSync, mkdirSync, existsSync } from 'fs'
@@ -330,6 +330,11 @@ ipcMain.on(IPC.LOCAL_PTY_INPUT, (_event, sessionId: string, data: string) => {
 let activeSessionIdForDrop: string | null = null
 ipcMain.on(IPC.SET_ACTIVE_SESSION, (_event, sessionId: string) => {
   activeSessionIdForDrop = sessionId
+})
+
+// Native notifications
+ipcMain.on(IPC.SHOW_NOTIFICATION, (_event, title: string, body: string) => {
+  new Notification({ title, body }).show()
 })
 
 // File drop — renderer sends escaped paths, we forward to active PTY

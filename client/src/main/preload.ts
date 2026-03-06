@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.TOOL_SESSION_DETECTED, listener)
     return () => ipcRenderer.removeListener(IPC.TOOL_SESSION_DETECTED, listener)
   },
+  showNotification: (title: string, body: string) => ipcRenderer.send(IPC.SHOW_NOTIFICATION, title, body),
   sendFileDrop: (text: string) => ipcRenderer.send(IPC.FILE_DROP, text),
   setActiveSessionMain: (sessionId: string) => ipcRenderer.send(IPC.SET_ACTIVE_SESSION, sessionId),
   getPathForFile: (file: File) => webUtils.getPathForFile(file)

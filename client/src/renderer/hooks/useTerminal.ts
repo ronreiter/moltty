@@ -85,6 +85,7 @@ export function useTerminal(sessionId: string | null) {
 
       let readyCalled = false
       let busyTimer: ReturnType<typeof setTimeout> | null = null
+      let busySince: number | null = null
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -100,20 +101,20 @@ export function useTerminal(sessionId: string | null) {
         }
         // Mark activity on background tabs
         useStore.getState().markTabActivity(sessionId)
-        // Mark session as busy (producing output), idle after 2s of silence
-        const wasBusy = useStore.getState().busySessionIds.has(sessionId)
+        // Track busy state
+        if (!busySince) busySince = Date.now()
         useStore.getState().markSessionBusy(sessionId)
         if (busyTimer) clearTimeout(busyTimer)
         busyTimer = setTimeout(() => {
+          const busyDuration = busySince ? Date.now() - busySince : 0
+          busySince = null
           useStore.getState().markSessionIdle(sessionId)
-          // Notify when a background session finishes work (was busy, now idle)
-          if (useStore.getState().activeSessionId !== sessionId) {
+          // Notify when a background session finishes real work (busy > 5s, then 5s silence)
+          if (busyDuration > 5000 && useStore.getState().activeSessionId !== sessionId) {
             const session = useStore.getState().sessions.find((s) => s.id === sessionId)
-            new Notification('Moltty', {
-              body: `${session?.name || 'Session'} finished a task`
-            })
+            window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} finished a task`)
           }
-        }, 2000)
+        }, 5000)
       })
 
       const removeExit = window.electronAPI.onLocalPtyExit((sid, exitCode) => {
@@ -124,9 +125,7 @@ export function useTerminal(sessionId: string | null) {
         // Send macOS notification if tab is in background
         if (useStore.getState().activeSessionId !== sessionId) {
           const session = useStore.getState().sessions.find((s) => s.id === sessionId)
-          new Notification('Moltty', {
-            body: `${session?.name || 'Session'} has finished (exit ${exitCode})`
-          })
+          window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} has finished (exit ${exitCode})`)
         }
       })
 
