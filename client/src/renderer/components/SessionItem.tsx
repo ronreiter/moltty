@@ -43,7 +43,7 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
       onClick={onClick}
       onDoubleClick={handleDoubleClick}
       className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-        isActive ? 'bg-terminal-accent/20 text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
+        isActive ? 'bg-terminal-bg text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
       }`}
     >
       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
