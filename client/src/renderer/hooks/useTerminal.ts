@@ -158,5 +158,17 @@ export function useTerminal(sessionId: string | null) {
     }
   }, [sessionId])
 
+  // Update terminal theme when settings change
+  useEffect(() => {
+    const unsubscribe = useStore.subscribe((state, prev) => {
+      if (state.settings?.theme !== prev.settings?.theme && terminalRef.current) {
+        const themeId = (state.settings?.theme || 'dark1') as ThemeId
+        const appTheme = getTheme(themeId)
+        terminalRef.current.options.theme = appTheme.terminal
+      }
+    })
+    return unsubscribe
+  }, [])
+
   return { initTerminal, terminalRef, searchAddonRef }
 }
