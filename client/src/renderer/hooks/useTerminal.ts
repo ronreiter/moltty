@@ -174,9 +174,12 @@ export function useTerminal(sessionId: string | null) {
 
       const settings = useStore.getState().settings
       const toolDef = CODING_TOOLS.find((t) => t.id === settings?.codingTool) || CODING_TOOLS[0]
-      const command = session?.toolSessionId && toolDef.resumeArg
+      let command = session?.toolSessionId && toolDef.resumeArg
         ? `${toolDef.command} ${toolDef.resumeArg} ${session.toolSessionId}`
         : toolDef.command
+      if (session?.skipPermissions) {
+        command += ' --dangerously-skip-permissions'
+      }
       const loadZshrc = settings?.loadZshrc ?? true
       window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~', loadZshrc).then((result) => {
         if (!result.ok) {

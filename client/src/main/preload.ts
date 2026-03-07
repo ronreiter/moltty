@@ -42,8 +42,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener(IPC.TOOL_SESSION_DETECTED, listener)
   },
   getGitBranch: (workDir: string) => ipcRenderer.invoke(IPC.GET_GIT_BRANCH, workDir) as Promise<string | null>,
+  createGitWorktree: (workDir: string) => ipcRenderer.invoke(IPC.CREATE_GIT_WORKTREE, workDir) as Promise<{ ok: boolean; path?: string; branch?: string; error?: string }>,
   showNotification: (title: string, body: string) => ipcRenderer.send(IPC.SHOW_NOTIFICATION, title, body),
   sendFileDrop: (text: string) => ipcRenderer.send(IPC.FILE_DROP, text),
   setActiveSessionMain: (sessionId: string) => ipcRenderer.send(IPC.SET_ACTIVE_SESSION, sessionId),
-  getPathForFile: (file: File) => webUtils.getPathForFile(file)
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
+  forceQuit: () => ipcRenderer.send(IPC.FORCE_QUIT),
+  onQuitConfirm: (cb: (show: boolean) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, show: boolean) => cb(show)
+    ipcRenderer.on('quit-confirm', listener)
+    return () => ipcRenderer.removeListener('quit-confirm', listener)
+  }
 })

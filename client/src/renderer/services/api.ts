@@ -44,10 +44,13 @@ declare global {
       onLocalPtyExit: (cb: (sessionId: string, exitCode: number) => void) => () => void
       onToolSessionDetected: (cb: (sessionId: string, toolSessionId: string) => void) => () => void
       getGitBranch: (workDir: string) => Promise<string | null>
+      createGitWorktree: (workDir: string) => Promise<{ ok: boolean; path?: string; branch?: string; error?: string }>
       showNotification: (title: string, body: string) => void
       sendFileDrop: (text: string) => void
       setActiveSessionMain: (sessionId: string) => void
       getPathForFile: (file: File) => string
+      forceQuit: () => void
+      onQuitConfirm: (cb: (show: boolean) => void) => () => void
     }
   }
 }

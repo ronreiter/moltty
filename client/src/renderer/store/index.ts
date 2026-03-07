@@ -6,7 +6,9 @@ export interface Session {
   name: string
   status: 'open' | 'closed'
   workDir?: string
+  displayDir?: string
   toolSessionId?: string
+  skipPermissions?: boolean
   createdAt: string
 }
 

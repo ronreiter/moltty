@@ -332,17 +332,26 @@ ipcMain.on(IPC.SET_ACTIVE_SESSION, (_event, sessionId: string) => {
   activeSessionIdForDrop = sessionId
 })
 
-// Read git branch from .git/HEAD (no subprocess)
+// Read git branch from .git/HEAD (no subprocess, supports worktrees)
 ipcMain.handle(IPC.GET_GIT_BRANCH, (_event, workDir: string) => {
   let dir = workDir
   if (dir.startsWith('~/')) dir = join(homedir(), dir.slice(2))
-  // Walk up to find .git
   let current = dir
   for (let i = 0; i < 20; i++) {
+    const gitPath = join(current, '.git')
     try {
-      const head = readFileSync(join(current, '.git', 'HEAD'), 'utf-8').trim()
+      const stat = statSync(gitPath)
+      let headPath: string
+      if (stat.isDirectory()) {
+        headPath = join(gitPath, 'HEAD')
+      } else {
+        // Worktree: .git is a file with "gitdir: /path/to/.git/worktrees/name"
+        const gitdir = readFileSync(gitPath, 'utf-8').trim().replace('gitdir: ', '')
+        headPath = join(gitdir, 'HEAD')
+      }
+      const head = readFileSync(headPath, 'utf-8').trim()
       if (head.startsWith('ref: refs/heads/')) return head.slice(16)
-      return head.slice(0, 8) // detached HEAD
+      return head.slice(0, 8)
     } catch {
       const parent = join(current, '..')
       if (parent === current) break
@@ -350,6 +359,30 @@ ipcMain.handle(IPC.GET_GIT_BRANCH, (_event, workDir: string) => {
     }
   }
   return null
+})
+
+// Create git worktree in temp directory, branching from current branch
+ipcMain.handle(IPC.CREATE_GIT_WORKTREE, (_event, workDir: string) => {
+  let dir = workDir
+  if (dir.startsWith('~/')) dir = join(homedir(), dir.slice(2))
+  try {
+    const { execSync } = require('child_process')
+    // Get current branch name
+    const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: dir, stdio: 'pipe' }).toString().trim()
+    const suffix = Date.now().toString(36)
+    const branchName = `${currentBranch}-wt-${suffix}`
+    const worktreePath = join(require('os').tmpdir(), `moltty-worktree-${branchName}`)
+    execSync(`git worktree add "${worktreePath}" -b "${branchName}"`, { cwd: dir, stdio: 'pipe' })
+    return { ok: true, path: worktreePath, branch: branchName }
+  } catch (err) {
+    return { ok: false, error: String(err) }
+  }
+})
+
+// Force quit from renderer after hold
+ipcMain.on(IPC.FORCE_QUIT, () => {
+  quitConfirmed = true
+  app.quit()
 })
 
 // Native notifications
@@ -387,12 +420,23 @@ ipcMain.handle(IPC.LOCAL_PTY_KILL, (_event, sessionId: string) => {
   }
 })
 
+// Hold Cmd+Q to quit — prevent accidental close
+let quitConfirmed = false
+
+app.on('before-quit', (event) => {
+  if (quitConfirmed) return
+  event.preventDefault()
+  // Tell renderer to start the hold-to-quit countdown
+  mainWindow?.webContents.send('quit-confirm', true)
+})
+
 app.whenReady().then(() => {
   createWindow()
 })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    quitConfirmed = true
     app.quit()
   }
 })

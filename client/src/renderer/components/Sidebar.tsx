@@ -45,6 +45,8 @@ export default function Sidebar() {
   const [tab, setTab] = useState<Tab>('sessions')
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [useWorktree, setUseWorktree] = useState(false)
+  const [skipPermissions, setSkipPermissions] = useState(false)
 
   useEffect(() => {
     if (tab === 'history') {
@@ -65,9 +67,19 @@ export default function Sidebar() {
   const newSessionWithFolder = async () => {
     try {
       const folder = await window.electronAPI.pickFolder()
-      if (folder) {
-        createSession(shortPath(folder), undefined, folder)
+      if (!folder) return
+      let workDir = folder
+      let name = shortPath(folder)
+      let displayDir: string | undefined
+      if (useWorktree) {
+        const result = await window.electronAPI.createGitWorktree(folder)
+        if (result.ok && result.path) {
+          workDir = result.path
+          displayDir = folder
+          name = `${shortPath(folder)} [${result.branch}]`
+        }
       }
+      createSession(name, undefined, workDir, { skipPermissions, displayDir })
     } catch {
       // dialog failed, do nothing
     }
@@ -84,7 +96,7 @@ export default function Sidebar() {
       </div>
 
       {/* New session button */}
-      <div className="px-3 pb-2">
+      <div className="px-3 pb-2 flex flex-col gap-1.5">
         <button
           onClick={newSessionWithFolder}
           className="w-full py-2 text-sm text-terminal-accent rounded-lg border border-terminal-accent/50 hover:border-terminal-accent transition-colors"
@@ -92,6 +104,24 @@ export default function Sidebar() {
         >
           + New Session
         </button>
+        <label className="flex items-center gap-2 px-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={useWorktree}
+            onChange={(e) => setUseWorktree(e.target.checked)}
+            className="w-3 h-3 rounded accent-terminal-accent"
+          />
+          <span className="text-xs text-terminal-subtext">Git worktree</span>
+        </label>
+        <label className="flex items-center gap-2 px-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={skipPermissions}
+            onChange={(e) => setSkipPermissions(e.target.checked)}
+            className="w-3 h-3 rounded accent-terminal-accent"
+          />
+          <span className="text-xs text-terminal-subtext">Skip permissions</span>
+        </label>
       </div>
 
       {/* Tabs */}
@@ -170,7 +200,7 @@ export default function Sidebar() {
                 {cs.summary && (
                   <span className="text-[11px] text-terminal-text/60 truncate">{cs.summary}</span>
                 )}
-                <div className="flex gap-2 text-[10px] text-terminal-subtext">
+                <div className="flex gap-2 text-xs text-terminal-subtext">
                   <span>{timeAgo(cs.updatedAt)}</span>
                   <span>{formatSize(cs.size)}</span>
                 </div>

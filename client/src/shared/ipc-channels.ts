@@ -18,5 +18,7 @@ export const IPC = {
   FILE_DROP: 'file:drop',
   SET_ACTIVE_SESSION: 'session:set-active',
   SHOW_NOTIFICATION: 'app:show-notification',
-  GET_GIT_BRANCH: 'git:get-branch'
+  GET_GIT_BRANCH: 'git:get-branch',
+  CREATE_GIT_WORKTREE: 'git:create-worktree',
+  FORCE_QUIT: 'app:force-quit'
 } as const

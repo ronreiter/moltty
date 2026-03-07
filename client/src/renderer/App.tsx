@@ -20,6 +20,7 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string; dmgUrl: string } | null>(null)
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [gitBranch, setGitBranch] = useState<string | null>(null)
+  const [quitProgress, setQuitProgress] = useState(0) // 0 = hidden, 1-100 = holding
   const clearTabActivity = useStore((s) => s.clearTabActivity)
   const setFontSize = useStore((s) => s.setFontSize)
   const fontSize = useStore((s) => s.fontSize)
@@ -28,6 +29,42 @@ export default function App() {
   useEffect(() => {
     hydrate()
   }, [hydrate])
+
+  // Hold Cmd+Q to quit
+  const quitIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    const cancelQuit = () => {
+      if (quitIntervalRef.current) {
+        clearInterval(quitIntervalRef.current)
+        quitIntervalRef.current = null
+      }
+      setQuitProgress(0)
+    }
+    const cleanup = window.electronAPI?.onQuitConfirm((show) => {
+      if (show && !quitIntervalRef.current) {
+        let progress = 0
+        setQuitProgress(1)
+        quitIntervalRef.current = setInterval(() => {
+          progress += 4
+          if (progress >= 100) {
+            cancelQuit()
+            window.electronAPI.forceQuit()
+          } else {
+            setQuitProgress(progress)
+          }
+        }, 50) // 50ms * 25 steps = 1.25s hold
+        // Cancel on key up
+        const onKeyUp = (e: KeyboardEvent) => {
+          if (e.key === 'q' || e.key === 'Meta') {
+            cancelQuit()
+            window.removeEventListener('keyup', onKeyUp)
+          }
+        }
+        window.addEventListener('keyup', onKeyUp)
+      }
+    })
+    return () => { cleanup?.(); cancelQuit() }
+  }, [])
 
   // Check for updates on mount
   useEffect(() => {
@@ -78,8 +115,9 @@ export default function App() {
   // Fetch git branch for active session
   useEffect(() => {
     setGitBranch(null)
-    if (activeSession?.workDir) {
-      window.electronAPI?.getGitBranch(activeSession.workDir).then((branch) => {
+    const dir = activeSession?.workDir
+    if (dir) {
+      window.electronAPI?.getGitBranch(dir).then((branch) => {
         setGitBranch(branch)
       })
     }
@@ -205,7 +243,7 @@ export default function App() {
             {activeSession?.workDir && (
               <div className="flex-shrink-0 px-4 py-1.5 bg-terminal-surface border-b border-terminal-border flex items-center gap-3">
                 <span className="text-xs text-terminal-subtext font-mono">
-                  {activeSession.workDir.replace(/^\/Users\/[^/]+/, '~')}
+                  {(activeSession.displayDir || activeSession.workDir).replace(/^\/Users\/[^/]+/, '~')}
                 </span>
                 {gitBranch && (
                   <span className="text-xs text-terminal-accent font-mono">
@@ -243,6 +281,15 @@ export default function App() {
         )}
       </div>
       {showSwitcher && <QuickSwitcher onClose={() => setShowSwitcher(false)} />}
+      {quitProgress > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 bg-terminal-surface border border-terminal-border rounded-lg shadow-2xl overflow-hidden">
+          <span className="text-sm text-terminal-text relative z-10">Hold <kbd className="font-mono font-bold text-terminal-accent">Cmd+Q</kbd> to quit...</span>
+          <div
+            className="absolute inset-0 bg-terminal-accent/20 transition-none"
+            style={{ width: `${quitProgress}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }
