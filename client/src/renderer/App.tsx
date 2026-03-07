@@ -76,11 +76,14 @@ export default function App() {
         const current = __APP_VERSION__
         if (latest !== current) {
           const dmg = d.assets?.find((a: { name: string }) => a.name.endsWith('.dmg'))
-          setUpdateInfo({
-            version: latest,
-            notes: d.body || '',
-            dmgUrl: dmg?.browser_download_url || d.html_url
-          })
+          const dmgUrl = dmg?.browser_download_url || d.html_url
+          const autoUpdate = useStore.getState().settings?.autoUpdate !== false
+          if (autoUpdate && dmg?.browser_download_url) {
+            // Auto-download and open the DMG
+            window.electronAPI.openExternal(dmg.browser_download_url)
+          } else {
+            setUpdateInfo({ version: latest, notes: d.body || '', dmgUrl })
+          }
         }
       })
       .catch(() => {})
