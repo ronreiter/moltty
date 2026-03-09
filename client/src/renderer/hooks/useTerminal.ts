@@ -27,7 +27,17 @@ export function useTerminal(sessionId: string | null) {
         cursorBlink: false,
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-        theme: appTheme.terminal
+        theme: appTheme.terminal,
+        linkHandler: {
+          activate: (_event: MouseEvent, uri: string) => {
+            if (uri.startsWith('file://') || uri.startsWith('/') || uri.startsWith('~/')) {
+              const path = uri.replace('file://', '')
+              window.electronAPI.openPath(path)
+            } else {
+              window.electronAPI.openExternal(uri)
+            }
+          }
+        }
       })
 
       const fitAddon = new FitAddon()
