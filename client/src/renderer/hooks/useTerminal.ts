@@ -99,8 +99,11 @@ export function useTerminal(sessionId: string | null) {
       let outputBytes = 0
       let lastInputTime = 0
       let inOsc = false
+      let suppressNotifications = true // suppress during initial load
       const BUSY_THRESHOLD = 500 // bytes of output before showing busy indicator
       const INPUT_ECHO_WINDOW = 150 // ms to ignore output after input (echo)
+      // Allow notifications after 15s (enough for all sessions to finish loading)
+      setTimeout(() => { suppressNotifications = false }, 15000)
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
         if (sid !== sessionId) return
         if (!readyCalled) {
@@ -134,8 +137,8 @@ export function useTerminal(sessionId: string | null) {
           useStore.getState().markSessionIdle(sessionId)
           // Mark tab activity and notify when a real task finishes (was busy, now idle)
           if (wasBusy && useStore.getState().activeSessionId !== sessionId) {
-            useStore.getState().markTabActivity(sessionId)
-            if (useStore.getState().settings?.notifications !== false) {
+            if (!suppressNotifications) useStore.getState().markTabActivity(sessionId)
+            if (!suppressNotifications && useStore.getState().settings?.notifications !== false) {
               const session = useStore.getState().sessions.find((s) => s.id === sessionId)
               window.electronAPI.showNotification('Moltty', `${session?.name || 'Session'} finished a task`)
             }
