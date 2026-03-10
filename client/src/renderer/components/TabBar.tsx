@@ -12,6 +12,7 @@ export default function TabBar() {
   const reorderTabs = useStore((s) => s.reorderTabs)
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
+  const tabsRef = useRef<HTMLDivElement>(null)
   const [showAbout, setShowAbout] = useState(false)
 
   const handleDragStart = (index: number) => {
@@ -34,7 +35,15 @@ export default function TabBar() {
   return (
     <>
       <div className="titlebar-drag flex-shrink-0 h-12 flex items-end bg-terminal-surface border-b border-terminal-border">
-        <div className="flex-1 flex items-end overflow-x-auto min-w-0">
+        <div
+          ref={tabsRef}
+          className="flex-1 flex items-end overflow-x-auto min-w-0 scrollbar-hide"
+          onWheel={(e) => {
+            if (tabsRef.current) {
+              tabsRef.current.scrollLeft += e.deltaY || e.deltaX
+            }
+          }}
+        >
           {openTabs.map((tabId, index) => {
             const session = sessions.find((s) => s.id === tabId)
             if (!session) return null

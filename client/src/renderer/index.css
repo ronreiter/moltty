@@ -29,6 +29,10 @@ body {
   -webkit-app-region: no-drag;
 }
 
+/* Hide scrollbar on tab bar */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Pulsing dot: transparent to green */
 @keyframes pulse-dot {
   0%, 100% { opacity: 0; }
