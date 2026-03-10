@@ -27,7 +27,10 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
   const { initTerminal, terminalRef, searchAddonRef } = useTerminal(sessionId)
 
   useImperativeHandle(ref, () => ({
-    focus: () => terminalRef.current?.focus()
+    focus: () => {
+      terminalRef.current?.scrollToBottom()
+      terminalRef.current?.focus()
+    }
   }))
 
   useEffect(() => {
