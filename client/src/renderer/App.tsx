@@ -198,7 +198,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-terminal-bg">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Tab bar in the titlebar area */}
         <TabBar />
 
