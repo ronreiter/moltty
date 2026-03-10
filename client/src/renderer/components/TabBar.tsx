@@ -34,7 +34,7 @@ export default function TabBar() {
 
   return (
     <>
-      <div className="titlebar-drag flex-shrink-0 h-12 flex items-end bg-terminal-surface border-b border-terminal-border">
+      <div className="titlebar-drag flex-shrink-0 h-12 flex items-end bg-terminal-surface border-b border-terminal-border overflow-hidden">
         <div
           ref={tabsRef}
           className="flex-1 flex items-end overflow-x-auto min-w-0 scrollbar-hide"
