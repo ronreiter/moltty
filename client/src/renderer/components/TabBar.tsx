@@ -34,7 +34,7 @@ export default function TabBar() {
   return (
     <>
       <div className="titlebar-drag flex-shrink-0 h-12 flex items-end bg-terminal-surface border-b border-terminal-border">
-        <div className="flex-1 flex items-end overflow-x-auto">
+        <div className="flex-1 flex items-end overflow-x-auto min-w-0">
           {openTabs.map((tabId, index) => {
             const session = sessions.find((s) => s.id === tabId)
             if (!session) return null
@@ -48,7 +48,7 @@ export default function TabBar() {
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={handleDrop}
                 onClick={() => openTab(tabId)}
-                className={`titlebar-no-drag group flex-1 min-w-0 flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`titlebar-no-drag group flex-shrink-0 flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors max-w-[200px] ${
                   isActive
                     ? 'bg-terminal-bg text-terminal-accent'
                     : 'text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50'
