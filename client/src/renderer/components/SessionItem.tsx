@@ -12,6 +12,7 @@ interface Props {
 export default function SessionItem({ session, isActive, onClick, onRename, onDelete }: Props) {
   const isLoaded = useStore((s) => s.loadedSessionIds.has(session.id))
   const isBusy = useStore((s) => s.busySessionIds.has(session.id))
+  const hasActivity = useStore((s) => s.activeTabIds.has(session.id))
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(session.name)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -35,9 +36,14 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
     setEditing(false)
   }
 
-  const statusColor = session.status === 'open'
-    ? (isLoaded ? 'bg-terminal-green' : 'bg-orange-400')
-    : 'bg-terminal-subtext'
+  // grey=dead, orange=starting, blue=attention, green=ok
+  const statusColor = session.status !== 'open'
+    ? 'bg-terminal-subtext'
+    : !isLoaded
+      ? 'bg-orange-400'
+      : hasActivity
+        ? 'bg-blue-400'
+        : 'bg-terminal-green'
 
   return (
     <div
