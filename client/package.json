@@ -1,6 +1,6 @@
 {
   "name": "moltty",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "Remote terminal client",
   "main": "out/main/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "preview": "electron-vite preview",
     "package": "electron-builder",
     "test": "playwright test",
-    "postinstall": "electron-rebuild -f -w node-pty && node scripts/patch-electron-name.js"
+    "postinstall": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",

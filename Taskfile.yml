@@ -2,9 +2,12 @@ version: '3'
 
 tasks:
   default:
-    deps: [build]
+    silent: true
+    cmds:
+      - task --list
 
   install:
+    desc: Install npm dependencies
     dir: client
     cmds:
       - npm install
@@ -13,24 +16,28 @@ tasks:
       - package-lock.json
 
   dev:
+    desc: Start dev server
     deps: [install]
     dir: client
     cmds:
       - npm run dev
 
   build:
+    desc: Build the app
     deps: [install]
     dir: client
     cmds:
       - npm run build
 
   test:
+    desc: Run Playwright tests
     deps: [install]
     dir: client
     cmds:
       - npx playwright test
 
   package:
+    desc: Package the app for distribution
     deps: [build]
     dir: client
     env:
@@ -42,6 +49,7 @@ tasks:
       - npm run package
 
   release:
+    desc: Create a GitHub release
     deps: [package]
     cmds:
       - gh release create v{{.VERSION}} --title "Moltty v{{.VERSION}}" --generate-notes client/release/Moltty-{{.VERSION}}-arm64.dmg
@@ -50,5 +58,6 @@ tasks:
         sh: node -p "require('./client/package.json').version"
 
   clean:
+    desc: Remove build artifacts
     cmds:
       - rm -rf client/dist client/out client/release

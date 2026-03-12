@@ -113,9 +113,14 @@ export function useTerminal(sessionId: string | null) {
         }
         const buf = terminal.buffer.active
         const wasAtBottom = buf.baseY === 0 || buf.viewportY >= buf.baseY - 1
+        const savedViewportY = buf.viewportY
         terminal.write(data)
         if (wasAtBottom) {
           terminal.scrollToBottom()
+        } else {
+          // Restore viewport when user has scrolled up — prevents cursor
+          // movement escape codes (e.g. status line updates) from jumping the view
+          terminal.scrollToLine(savedViewportY)
         }
         // Track busy state — only mark busy after sustained output, ignore input echo
         const isEcho = Date.now() - lastInputTime < INPUT_ECHO_WINDOW
