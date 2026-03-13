@@ -29,6 +29,7 @@ export function useTerminal(sessionId: string | null) {
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
         theme: appTheme.terminal,
         linkHandler: {
+          allowNonHttpProtocols: true,
           activate: (_event: MouseEvent, uri: string) => {
             if (uri.startsWith('file://') || uri.startsWith('/') || uri.startsWith('~/')) {
               const path = uri.replace('file://', '')

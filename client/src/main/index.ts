@@ -238,6 +238,8 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
       env: {
         ...cleanEnv,
         TERM: 'xterm-256color',
+        TERM_PROGRAM: 'Moltty',
+        FORCE_HYPERLINK: '1',
         HOME: homedir()
       }
     })
