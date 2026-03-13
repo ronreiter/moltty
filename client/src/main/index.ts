@@ -388,10 +388,20 @@ ipcMain.on(IPC.FORCE_QUIT, () => {
 })
 
 // Native notifications
-ipcMain.on(IPC.SHOW_NOTIFICATION, (_event, title: string, body: string) => {
-  console.log(`NOTIFICATION: supported=${Notification.isSupported()} title=${title} body=${body}`)
+ipcMain.on(IPC.SHOW_NOTIFICATION, (_event, title: string, body: string, sessionId?: string) => {
+  console.log(`NOTIFICATION: supported=${Notification.isSupported()} title=${title} body=${body} sessionId=${sessionId}`)
   if (Notification.isSupported()) {
-    new Notification({ title, body }).show()
+    const notification = new Notification({ title, body })
+    notification.on('click', () => {
+      if (mainWindow) {
+        mainWindow.show()
+        mainWindow.focus()
+        if (sessionId) {
+          mainWindow.webContents.send('focus-session', sessionId)
+        }
+      }
+    })
+    notification.show()
   }
 })
 

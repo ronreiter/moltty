@@ -43,7 +43,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getGitBranch: (workDir: string) => ipcRenderer.invoke(IPC.GET_GIT_BRANCH, workDir) as Promise<string | null>,
   createGitWorktree: (workDir: string) => ipcRenderer.invoke(IPC.CREATE_GIT_WORKTREE, workDir) as Promise<{ ok: boolean; path?: string; branch?: string; error?: string }>,
-  showNotification: (title: string, body: string) => ipcRenderer.send(IPC.SHOW_NOTIFICATION, title, body),
+  showNotification: (title: string, body: string, sessionId?: string) => ipcRenderer.send(IPC.SHOW_NOTIFICATION, title, body, sessionId),
+  onFocusSession: (cb: (sessionId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, sessionId: string) => cb(sessionId)
+    ipcRenderer.on('focus-session', listener)
+    return () => ipcRenderer.removeListener('focus-session', listener)
+  },
   sendFileDrop: (text: string) => ipcRenderer.send(IPC.FILE_DROP, text),
   setActiveSessionMain: (sessionId: string) => ipcRenderer.send(IPC.SET_ACTIVE_SESSION, sessionId),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),

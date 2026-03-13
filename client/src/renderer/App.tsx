@@ -104,6 +104,14 @@ export default function App() {
     root.style.setProperty('--terminal-border', theme.ui.border)
   }, [settings?.theme])
 
+  // Focus session when notification is clicked
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onFocusSession((sessionId) => {
+      useStore.getState().openTab(sessionId)
+    })
+    return () => { cleanup?.() }
+  }, [])
+
   // Focus terminal and clear activity when active tab changes
   useEffect(() => {
     if (activeSessionId) {
