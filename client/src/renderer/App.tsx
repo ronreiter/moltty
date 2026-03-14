@@ -112,6 +112,13 @@ export default function App() {
     return () => { cleanup?.() }
   }, [])
 
+  // Safety: if we have open tabs but no active session, pick the first
+  useEffect(() => {
+    if (!activeSessionId && openTabs.length > 0) {
+      setActiveSession(openTabs[0])
+    }
+  }, [activeSessionId, openTabs, setActiveSession])
+
   // Focus terminal and clear activity when active tab changes
   useEffect(() => {
     if (activeSessionId) {

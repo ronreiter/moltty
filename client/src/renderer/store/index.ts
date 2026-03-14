@@ -124,6 +124,11 @@ export const useStore = create<AppState>((set) => ({
       if (activeSessionId === id) {
         activeSessionId = openTabs.length > 0 ? openTabs[openTabs.length - 1] : null
       }
+      if (!activeSessionId && openTabs.length > 0) {
+        activeSessionId = openTabs[0]
+      }
+      // Kill PTY immediately
+      window.electronAPI?.killLocalPty(id)
       return {
         sessions: state.sessions.filter((s) => s.id !== id),
         openTabs,
@@ -157,6 +162,12 @@ export const useStore = create<AppState>((set) => ({
         activeSessionId =
           openTabs.length > 0 ? openTabs[Math.min(idx, openTabs.length - 1)] : null
       }
+      // Safety: if we still have tabs but no active one, pick the first
+      if (!activeSessionId && openTabs.length > 0) {
+        activeSessionId = openTabs[0]
+      }
+      // Kill PTY immediately instead of waiting for component unmount
+      window.electronAPI?.killLocalPty(id)
       return {
         openTabs,
         activeSessionId,
