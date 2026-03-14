@@ -103,6 +103,18 @@ export function useTerminal(sessionId: string | null) {
       let suppressNotifications = true // suppress during initial load
       const BUSY_THRESHOLD = 500 // bytes of output before showing busy indicator
       const INPUT_ECHO_WINDOW = 150 // ms to ignore output after input (echo)
+
+      // Persistent scroll state — survives across async write batches
+      let stayAtBottom = true
+
+      // Detect user scrolling via wheel events on the terminal container
+      container.addEventListener('wheel', () => {
+        requestAnimationFrame(() => {
+          const buf = terminal.buffer.active
+          stayAtBottom = buf.baseY === 0 || buf.viewportY >= buf.baseY - 1
+        })
+      })
+
       // Allow notifications after 15s (enough for all sessions to finish loading)
       setTimeout(() => { suppressNotifications = false }, 15000)
       const removeOutput = window.electronAPI.onLocalPtyOutput((sid, data) => {
@@ -112,16 +124,9 @@ export function useTerminal(sessionId: string | null) {
           useStore.getState().markSessionLoaded(sessionId)
           onReady?.()
         }
-        const buf = terminal.buffer.active
-        const wasAtBottom = buf.baseY === 0 || buf.viewportY >= buf.baseY - 1
-        const savedViewportY = buf.viewportY
         terminal.write(data, () => {
-          if (wasAtBottom) {
+          if (stayAtBottom) {
             terminal.scrollToBottom()
-          } else {
-            // Restore viewport when user has scrolled up — prevents cursor
-            // movement escape codes (e.g. status line updates) from jumping the view
-            terminal.scrollToLine(savedViewportY)
           }
         })
         // Track busy state — only mark busy after sustained output, ignore input echo
@@ -233,10 +238,8 @@ export function useTerminal(sessionId: string | null) {
       })
 
       const resizeObserver = new ResizeObserver(() => {
-        const buf = terminal.buffer.active
-        const wasAtBottom = buf.baseY === 0 || buf.viewportY >= buf.baseY - 1
         fitAddon.fit()
-        if (wasAtBottom) {
+        if (stayAtBottom) {
           terminal.scrollToBottom()
         }
         window.electronAPI.resizeLocalPty(sessionId, terminal.cols, terminal.rows)
