@@ -27,6 +27,7 @@ export function useTerminal(sessionId: string | null) {
         cursorBlink: false,
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        scrollback: 50000,
         theme: appTheme.terminal,
         linkHandler: {
           allowNonHttpProtocols: true,
