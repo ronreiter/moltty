@@ -120,7 +120,7 @@ export default function Sidebar() {
             onChange={(e) => setSkipPermissions(e.target.checked)}
             className="w-3 h-3 rounded accent-terminal-accent"
           />
-          <span className="text-xs text-terminal-subtext">Skip permissions</span>
+          <span className="text-xs text-terminal-subtext">Auto mode</span>
         </label>
       </div>
 

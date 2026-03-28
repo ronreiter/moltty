@@ -204,7 +204,7 @@ export function useTerminal(sessionId: string | null) {
         ? `${toolDef.command} ${toolDef.resumeArg} ${session.toolSessionId}`
         : toolDef.command
       if (session?.skipPermissions) {
-        command += ' --dangerously-skip-permissions'
+        command += ' --enable-auto-mode'
       }
       const loadZshrc = settings?.loadZshrc ?? true
       window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~', loadZshrc).then((result) => {
