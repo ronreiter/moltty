@@ -247,56 +247,9 @@ ipcMain.handle(IPC.LOCAL_PTY_SPAWN, (_event, sessionId: string, command: string,
     localPtySessions.set(sessionId, ptyProcess)
 
     // Detect tool session ID after spawn (for tools that support --resume)
+    // Note: Claude session IDs are now handled in the renderer via --session-id flag
     const isResuming = parts.includes('--resume')
-    if (parts[0] === 'claude' && !isResuming) {
-      // Claude: detect session ID from ~/.claude/projects/
-      const projectDirName = resolvedDir.replace(/\//g, '-')
-      const claudeProjectDir = join(homedir(), '.claude', 'projects', projectDirName)
-      const beforeFiles = new Map<string, number>() // filename → mtime
-      const spawnTime = Date.now()
-      try {
-        readdirSync(claudeProjectDir).filter(f => f.endsWith('.jsonl')).forEach(f => {
-          try { beforeFiles.set(f, statSync(join(claudeProjectDir, f)).mtimeMs) } catch {}
-        })
-      } catch {}
-
-      let pollCount = 0
-      const pollInterval = setInterval(() => {
-        pollCount++
-        if (pollCount > 60 || !localPtySessions.has(sessionId)) {
-          clearInterval(pollInterval)
-          // Fallback: find most recently modified file created after spawn
-          try {
-            const files = readdirSync(claudeProjectDir).filter(f => f.endsWith('.jsonl'))
-            let best: { name: string; mtime: number } | null = null
-            for (const f of files) {
-              try {
-                const mtime = statSync(join(claudeProjectDir, f)).mtimeMs
-                if (mtime > spawnTime && (!best || mtime > best.mtime)) {
-                  best = { name: f, mtime }
-                }
-              } catch {}
-            }
-            if (best) {
-              const toolSessionId = best.name.replace('.jsonl', '')
-              console.log(`TOOL_SESSION_DETECTED (fallback): molttySession=${sessionId} toolSession=${toolSessionId}`)
-              mainWindow?.webContents.send(IPC.TOOL_SESSION_DETECTED, sessionId, toolSessionId)
-            }
-          } catch {}
-          return
-        }
-        try {
-          const files = readdirSync(claudeProjectDir).filter(f => f.endsWith('.jsonl'))
-          const newFile = files.find(f => !beforeFiles.has(f))
-          if (newFile) {
-            clearInterval(pollInterval)
-            const toolSessionId = newFile.replace('.jsonl', '')
-            console.log(`TOOL_SESSION_DETECTED: molttySession=${sessionId} toolSession=${toolSessionId}`)
-            mainWindow?.webContents.send(IPC.TOOL_SESSION_DETECTED, sessionId, toolSessionId)
-          }
-        } catch {}
-      }, 500)
-    } else if (parts[0] === 'gemini' && !isResuming) {
+    if (parts[0] === 'gemini' && !isResuming) {
       // Gemini CLI: detect session ID from ~/.gemini/sessions/
       const geminiSessionsDir = join(homedir(), '.gemini', 'sessions')
       const beforeFiles = new Set<string>()

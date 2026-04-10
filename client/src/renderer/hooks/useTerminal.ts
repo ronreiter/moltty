@@ -200,9 +200,19 @@ export function useTerminal(sessionId: string | null) {
 
       const settings = useStore.getState().settings
       const toolDef = CODING_TOOLS.find((t) => t.id === settings?.codingTool) || CODING_TOOLS[0]
-      let command = session?.toolSessionId && toolDef.resumeArg
-        ? `${toolDef.command} ${toolDef.resumeArg} ${session.toolSessionId}`
-        : toolDef.command
+      let command: string
+      if (session?.toolSessionId && toolDef.resumeArg) {
+        // Resume existing session
+        command = `${toolDef.command} ${toolDef.resumeArg} ${session.toolSessionId}`
+      } else if (toolDef.id === 'claude') {
+        // New Claude session: generate a UUID and pass --session-id so we always know it
+        const newToolSessionId = crypto.randomUUID()
+        command = `${toolDef.command} --session-id ${newToolSessionId}`
+        // Save immediately so it persists even if the app quits before detection
+        useStore.getState().setToolSessionId(sessionId, newToolSessionId)
+      } else {
+        command = toolDef.command
+      }
       if (session?.skipPermissions) {
         command += ' --enable-auto-mode'
       }
