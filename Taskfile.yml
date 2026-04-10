@@ -48,14 +48,26 @@ tasks:
     cmds:
       - npm run package
 
-  release:
-    desc: Create a GitHub release
-    deps: [package]
+  bump:
+    desc: Bump minor version in package.json
+    dir: client
     cmds:
-      - gh release create v{{.VERSION}} --title "Moltty v{{.VERSION}}" --generate-notes client/release/Moltty-{{.VERSION}}-arm64.dmg
-    vars:
-      VERSION:
-        sh: node -p "require('./client/package.json').version"
+      - npm version minor --no-git-tag-version
+    silent: true
+
+  release:
+    desc: Bump version, commit, push, build, package, and create GitHub release
+    cmds:
+      - task: bump
+      - |
+        VERSION=$(node -p "require('./client/package.json').version")
+        git add -A
+        git commit -m "v${VERSION}: release"
+        git push
+      - task: package
+      - |
+        VERSION=$(node -p "require('./client/package.json').version")
+        gh release create "v${VERSION}" --title "Moltty v${VERSION}" --generate-notes "client/release/Moltty-${VERSION}-arm64.dmg"
 
   clean:
     desc: Remove build artifacts
