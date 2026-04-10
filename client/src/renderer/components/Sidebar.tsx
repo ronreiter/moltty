@@ -47,6 +47,7 @@ export default function Sidebar() {
   const [showSettings, setShowSettings] = useState(false)
   const [useWorktree, setUseWorktree] = useState(false)
   const [skipPermissions, setSkipPermissions] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (tab === 'history') {
@@ -85,8 +86,11 @@ export default function Sidebar() {
     }
   }
 
-  const openSessions = sessions.filter((s) => s.status === 'open')
-  const closedSessions = sessions.filter((s) => s.status === 'closed')
+  const lowerSearch = search.toLowerCase()
+  const matchSession = (s: { name?: string; workDir?: string }) =>
+    !search || s.name?.toLowerCase().includes(lowerSearch) || s.workDir?.toLowerCase().includes(lowerSearch)
+  const openSessions = sessions.filter((s) => s.status === 'open' && matchSession(s))
+  const closedSessions = sessions.filter((s) => s.status === 'closed' && matchSession(s))
 
   return (
     <div className="w-72 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
@@ -122,6 +126,16 @@ export default function Sidebar() {
           />
           <span className="text-xs text-terminal-subtext">Auto mode</span>
         </label>
+      </div>
+
+      {/* Search */}
+      <div className="px-3 pb-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search sessions..."
+          className="w-full px-2.5 py-1.5 text-xs bg-terminal-bg text-terminal-text rounded-lg border border-terminal-border outline-none focus:border-terminal-accent placeholder:text-terminal-subtext/50"
+        />
       </div>
 
       {/* Tabs */}
@@ -190,7 +204,7 @@ export default function Sidebar() {
             </div>
           )}
           {!loadingHistory &&
-            claudeSessions.map((cs) => (
+            claudeSessions.filter((cs) => !search || cs.cwd.toLowerCase().includes(lowerSearch) || cs.summary?.toLowerCase().includes(lowerSearch)).map((cs) => (
               <div
                 key={cs.sessionId}
                 onClick={() => resumeClaudeSession(cs)}

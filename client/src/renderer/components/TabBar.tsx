@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useStore } from '../store'
 import iconUrl from '../../../resources/icon.png?url'
 
@@ -13,7 +13,21 @@ export default function TabBar() {
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
   const tabsRef = useRef<HTMLDivElement>(null)
+  const tabElRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const [showAbout, setShowAbout] = useState(false)
+
+  // Auto-scroll active tab into view
+  useEffect(() => {
+    if (activeSessionId) {
+      const el = tabElRefs.current.get(activeSessionId)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    }
+  }, [activeSessionId])
+
+  const setTabElRef = useCallback((tabId: string, el: HTMLDivElement | null) => {
+    if (el) tabElRefs.current.set(tabId, el)
+    else tabElRefs.current.delete(tabId)
+  }, [])
 
   const handleDragStart = (index: number) => {
     dragIndex.current = index
@@ -52,6 +66,7 @@ export default function TabBar() {
             return (
               <div
                 key={tabId}
+                ref={(el) => setTabElRef(tabId, el)}
                 draggable
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
