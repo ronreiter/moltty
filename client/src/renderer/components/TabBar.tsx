@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
-import { useStore } from '../store'
+import { useStore, COLOR_HEX } from '../store'
 import iconUrl from '../../../resources/icon.png?url'
 
 export default function TabBar() {
@@ -90,6 +90,13 @@ export default function TabBar() {
                 <span className="truncate" title={session.name}>{session.name}</span>
                 {hasActivity && !isActive && (
                   <span className="w-2 h-2 rounded-full bg-terminal-accent flex-shrink-0" />
+                )}
+                {session.colorLabel && (
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: COLOR_HEX[session.colorLabel] }}
+                    title={session.colorLabel}
+                  />
                 )}
               </div>
             )

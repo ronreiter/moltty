@@ -148,6 +148,8 @@ export function useTerminal(sessionId: string | null) {
           const wasBusy = useStore.getState().busySessionIds.has(sessionId)
           outputBytes = 0
           useStore.getState().markSessionIdle(sessionId)
+          // Record finish time for sorting (sidebar list)
+          if (wasBusy) useStore.getState().markSessionFinished(sessionId)
           // Mark tab activity and notify when a real task finishes (was busy, now idle)
           if (wasBusy && useStore.getState().activeSessionId !== sessionId) {
             if (!suppressNotifications) useStore.getState().markTabActivity(sessionId)

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
-import { useStore } from '../store'
+import { useStore, COLOR_LABELS, ColorLabel, Session } from '../store'
 import SessionItem from './SessionItem'
 import SettingsModal from './SettingsModal'
 import type { ClaudeSession } from '../services/api'
@@ -41,6 +41,8 @@ export default function Sidebar() {
   const { sessions, activeSessionId, createSession, deleteSession, updateSessionName, setActiveSession } =
     useSessions()
   const reopenSession = useStore((s) => s.reopenSession)
+  const activeTabIds = useStore((s) => s.activeTabIds)
+  const lastFinishedAt = useStore((s) => s.lastFinishedAt)
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>([])
   const [tab, setTab] = useState<Tab>('sessions')
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -89,8 +91,23 @@ export default function Sidebar() {
   const lowerSearch = search.toLowerCase()
   const matchSession = (s: { name?: string; workDir?: string }) =>
     !search || s.name?.toLowerCase().includes(lowerSearch) || s.workDir?.toLowerCase().includes(lowerSearch)
-  const openSessions = sessions.filter((s) => s.status === 'open' && matchSession(s))
-  const closedSessions = sessions.filter((s) => s.status === 'closed' && matchSession(s))
+
+  const sortKey = (s: { id: string; createdAt: string }) =>
+    lastFinishedAt[s.id] ?? new Date(s.createdAt).getTime()
+  const sortBySession = (a: { id: string; createdAt: string }, b: { id: string; createdAt: string }) => {
+    const aBlue = activeTabIds.has(a.id)
+    const bBlue = activeTabIds.has(b.id)
+    if (aBlue !== bBlue) return aBlue ? -1 : 1
+    return sortKey(b) - sortKey(a)
+  }
+  const openSessions = sessions.filter((s) => s.status === 'open' && matchSession(s)).sort(sortBySession)
+  const closedSessions = sessions.filter((s) => s.status === 'closed' && matchSession(s)).sort(sortBySession)
+
+  const groupOrder: (ColorLabel | undefined)[] = [...COLOR_LABELS, undefined]
+  const groupSessions = (list: Session[]): Array<{ color: ColorLabel | undefined; items: Session[] }> =>
+    groupOrder
+      .map((color) => ({ color, items: list.filter((s) => s.colorLabel === color) }))
+      .filter((g) => g.items.length > 0)
 
   return (
     <div className="w-72 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
@@ -165,29 +182,33 @@ export default function Sidebar() {
       {/* Tab content */}
       {tab === 'sessions' && (
         <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
-          {openSessions.map((session) => (
-            <SessionItem
-              key={session.id}
-              session={session}
-              isActive={session.id === activeSessionId}
-              onClick={() => setActiveSession(session.id)}
-              onRename={(name) => updateSessionName(session.id, name)}
-              onDelete={() => deleteSession(session.id)}
-            />
-          ))}
+          {groupSessions(openSessions).flatMap(({ items }) =>
+            items.map((session) => (
+              <SessionItem
+                key={session.id}
+                session={session}
+                isActive={session.id === activeSessionId}
+                onClick={() => setActiveSession(session.id)}
+                onRename={(name) => updateSessionName(session.id, name)}
+                onDelete={() => deleteSession(session.id)}
+              />
+            ))
+          )}
           {closedSessions.length > 0 && openSessions.length > 0 && (
             <div className="border-t border-terminal-border my-1" />
           )}
-          {closedSessions.map((session) => (
-            <SessionItem
-              key={session.id}
-              session={session}
-              isActive={session.id === activeSessionId}
-              onClick={() => reopenSession(session.id)}
-              onRename={(name) => updateSessionName(session.id, name)}
-              onDelete={() => deleteSession(session.id)}
-            />
-          ))}
+          {groupSessions(closedSessions).flatMap(({ items }) =>
+            items.map((session) => (
+              <SessionItem
+                key={session.id}
+                session={session}
+                isActive={session.id === activeSessionId}
+                onClick={() => reopenSession(session.id)}
+                onRename={(name) => updateSessionName(session.id, name)}
+                onDelete={() => deleteSession(session.id)}
+              />
+            ))
+          )}
           {sessions.length === 0 && (
             <p className="text-terminal-subtext text-xs text-center mt-8 px-4">
               No sessions yet. Create one or pick from History.

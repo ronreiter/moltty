@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Session, useStore } from '../store'
+import { Session, useStore, COLOR_HEX } from '../store'
+import SessionContextMenu from './SessionContextMenu'
 
 interface Props {
   session: Session
@@ -13,8 +14,10 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
   const isLoaded = useStore((s) => s.loadedSessionIds.has(session.id))
   const isBusy = useStore((s) => s.busySessionIds.has(session.id))
   const hasActivity = useStore((s) => s.activeTabIds.has(session.id))
+  const setSessionColor = useStore((s) => s.setSessionColor)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(session.name)
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -45,11 +48,23 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
         ? 'bg-blue-400'
         : 'bg-terminal-green'
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setMenuPos({ x: e.clientX, y: e.clientY })
+  }
+
+  const tintBg = session.colorLabel
+    ? `color-mix(in srgb, ${COLOR_HEX[session.colorLabel]} 25%, transparent)`
+    : undefined
+
   return (
     <div
       onClick={onClick}
       onDoubleClick={handleDoubleClick}
-      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+      onContextMenu={handleContextMenu}
+      style={tintBg && !isActive ? { backgroundColor: tintBg } : undefined}
+      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
         isActive ? 'bg-terminal-bg text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
       }`}
     >
@@ -89,6 +104,15 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
       >
         ×
       </button>
+      {menuPos && (
+        <SessionContextMenu
+          x={menuPos.x}
+          y={menuPos.y}
+          current={session.colorLabel}
+          onPick={(color) => setSessionColor(session.id, color)}
+          onClose={() => setMenuPos(null)}
+        />
+      )}
     </div>
   )
 }

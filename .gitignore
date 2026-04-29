@@ -48,3 +48,6 @@ pgdata/
 .playwright-mcp/
 client/test-results/
 .task/
+
+# Internal design docs (brainstorming specs)
+docs/superpowers/

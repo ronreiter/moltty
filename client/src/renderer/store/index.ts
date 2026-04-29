@@ -1,6 +1,20 @@
 import { create } from 'zustand'
 import type { MolttySettings } from '../services/api'
 
+export type ColorLabel = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink'
+
+export const COLOR_LABELS: ColorLabel[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink']
+
+export const COLOR_HEX: Record<ColorLabel, string> = {
+  red: '#f87171',
+  orange: '#fb923c',
+  yellow: '#facc15',
+  green: '#4ade80',
+  blue: '#60a5fa',
+  purple: '#c084fc',
+  pink: '#f472b6'
+}
+
 export interface Session {
   id: string
   name: string
@@ -10,6 +24,7 @@ export interface Session {
   toolSessionId?: string
   skipPermissions?: boolean
   createdAt: string
+  colorLabel?: ColorLabel
 }
 
 type SessionData = { sessions: Session[]; openTabs: string[]; activeSessionId: string | null }
@@ -43,6 +58,7 @@ interface AppState {
   loadedSessionIds: Set<string>
   activeTabIds: Set<string>
   busySessionIds: Set<string>
+  lastFinishedAt: Record<string, number>
   hydrated: boolean
   settings: MolttySettings | null
   settingsLoaded: boolean
@@ -65,7 +81,9 @@ interface AppState {
   clearTabActivity: (id: string) => void
   markSessionBusy: (id: string) => void
   markSessionIdle: (id: string) => void
+  markSessionFinished: (id: string) => void
   reopenSession: (id: string) => void
+  setSessionColor: (id: string, color: ColorLabel | undefined) => void
   setSettings: (settings: MolttySettings) => void
   setFontSize: (size: number) => void
 }
@@ -77,6 +95,7 @@ export const useStore = create<AppState>((set) => ({
   loadedSessionIds: new Set<string>(),
   activeTabIds: new Set<string>(),
   busySessionIds: new Set<string>(),
+  lastFinishedAt: {},
   hydrated: false,
   settings: null,
   settingsLoaded: false,
@@ -239,6 +258,11 @@ export const useStore = create<AppState>((set) => ({
       return { busySessionIds: next }
     }),
 
+  markSessionFinished: (id) =>
+    set((state) => ({
+      lastFinishedAt: { ...state.lastFinishedAt, [id]: Date.now() }
+    })),
+
   reopenSession: (id) =>
     set((state) => {
       const old = state.sessions.find((s) => s.id === id)
@@ -258,6 +282,13 @@ export const useStore = create<AppState>((set) => ({
         activeSessionId: newId
       }
     }),
+
+  setSessionColor: (id, color) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, colorLabel: color } : s
+      )
+    })),
 
   setSettings: (settings) => {
     set({ settings })
