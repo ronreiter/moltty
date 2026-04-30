@@ -78,6 +78,7 @@ interface AppState {
   activeTabIds: Set<string>
   busySessionIds: Set<string>
   lastFinishedAt: Record<string, number>
+  restartCounters: Record<string, number>
   editorFilePath: string | null
   editorLine: number | null
   hydrated: boolean
@@ -104,6 +105,7 @@ interface AppState {
   markSessionIdle: (id: string) => void
   markSessionFinished: (id: string) => void
   reopenSession: (id: string) => void
+  restartSession: (id: string) => void
   setSessionColor: (id: string, color: ColorLabel | undefined) => void
   setEditorFile: (filePath: string | null, line?: number | null) => void
   addFolder: (name: string) => string
@@ -124,6 +126,7 @@ export const useStore = create<AppState>((set) => ({
   activeTabIds: new Set<string>(),
   busySessionIds: new Set<string>(),
   lastFinishedAt: {},
+  restartCounters: {},
   editorFilePath: null,
   editorLine: null,
   hydrated: false,
@@ -293,6 +296,27 @@ export const useStore = create<AppState>((set) => ({
     set((state) => ({
       lastFinishedAt: { ...state.lastFinishedAt, [id]: Date.now() }
     })),
+
+  restartSession: (id) =>
+    set((state) => {
+      // Kill the PTY; the new mount (after key change) will re-spawn it
+      window.electronAPI?.killLocalPty(id)
+      const loaded = new Set(state.loadedSessionIds)
+      loaded.delete(id)
+      const busy = new Set(state.busySessionIds)
+      busy.delete(id)
+      const activity = new Set(state.activeTabIds)
+      activity.delete(id)
+      return {
+        loadedSessionIds: loaded,
+        busySessionIds: busy,
+        activeTabIds: activity,
+        restartCounters: {
+          ...state.restartCounters,
+          [id]: (state.restartCounters[id] ?? 0) + 1
+        }
+      }
+    }),
 
   reopenSession: (id) =>
     set((state) => {

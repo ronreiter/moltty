@@ -22,6 +22,7 @@ export default function App() {
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [gitBranch, setGitBranch] = useState<string | null>(null)
   const editorFilePath = useStore((s) => s.editorFilePath)
+  const restartCounters = useStore((s) => s.restartCounters)
   const [quitProgress, setQuitProgress] = useState(0) // 0 = hidden, 1-100 = holding
   const clearTabActivity = useStore((s) => s.clearTabActivity)
   const setFontSize = useStore((s) => s.setFontSize)
@@ -284,6 +285,7 @@ export default function App() {
                     style={{ visibility: tabId === activeSessionId ? 'visible' : 'hidden' }}
                   >
                     <Terminal
+                      key={`${tabId}:${restartCounters[tabId] ?? 0}`}
                       ref={(handle) => setTerminalRef(tabId, handle)}
                       sessionId={tabId}
                     />

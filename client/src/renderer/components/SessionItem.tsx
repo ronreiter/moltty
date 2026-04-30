@@ -8,13 +8,16 @@ interface Props {
   onClick: () => void
   onRename: (name: string) => void
   onDelete: () => void
+  onClose?: () => void
 }
 
-export default function SessionItem({ session, isActive, onClick, onRename, onDelete }: Props) {
+export default function SessionItem({ session, isActive, onClick, onRename, onDelete, onClose }: Props) {
   const isLoaded = useStore((s) => s.loadedSessionIds.has(session.id))
   const isBusy = useStore((s) => s.busySessionIds.has(session.id))
   const hasActivity = useStore((s) => s.activeTabIds.has(session.id))
   const setSessionColor = useStore((s) => s.setSessionColor)
+  const restartSession = useStore((s) => s.restartSession)
+  const closeTab = useStore((s) => s.closeTab)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(session.name)
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
@@ -120,8 +123,10 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
           x={menuPos.x}
           y={menuPos.y}
           current={session.colorLabel}
-          onPick={(color) => setSessionColor(session.id, color)}
-          onClose={() => setMenuPos(null)}
+          onPickColor={(color) => setSessionColor(session.id, color)}
+          onRestart={() => restartSession(session.id)}
+          onClose={() => (onClose ? onClose() : closeTab(session.id))}
+          onDismiss={() => setMenuPos(null)}
         />
       )}
     </div>

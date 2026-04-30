@@ -11,19 +11,16 @@ interface Props {
   sessionId: string
 }
 
-// Track loaded sessions outside React to survive HMR and re-renders
-const loadedSessions = new Set<string>()
-
 const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
   const initializedRef = useRef(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [loaded, setLoaded] = useState(loadedSessions.has(sessionId))
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showScrollDown, setShowScrollDown] = useState(false)
   const isBusy = useStore((s) => s.busySessionIds.has(sessionId))
+  const loaded = useStore((s) => s.loadedSessionIds.has(sessionId))
   const { initTerminal, terminalRef, searchAddonRef } = useTerminal(sessionId)
 
   useImperativeHandle(ref, () => ({
@@ -36,10 +33,8 @@ const TerminalComponent = forwardRef<TerminalHandle, Props>(({ sessionId }, ref)
   useEffect(() => {
     if (containerRef.current && !initializedRef.current) {
       initializedRef.current = true
-      const cleanup = initTerminal(containerRef.current, () => {
-        loadedSessions.add(sessionId)
-        setLoaded(true)
-      })
+      // initTerminal calls markSessionLoaded itself when the first PTY output arrives
+      const cleanup = initTerminal(containerRef.current)
       cleanupRef.current = cleanup || null
 
       // Track scroll position
