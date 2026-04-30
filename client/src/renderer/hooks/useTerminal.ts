@@ -8,6 +8,18 @@ import { useStore } from '../store'
 import { CODING_TOOLS } from '../services/api'
 import { getTheme, type ThemeId } from '../services/themes'
 
+// Track last time the document became visible. Used to suppress busy-burst
+// notifications: when the OS sleeps or the window is hidden long enough that
+// queued PTY output arrives in a flood, the per-session busy timers all fire
+// in the same ~2s window and every tab announces "finished a task" together.
+let lastVisibleAt = Date.now()
+const FOCUS_BURST_WINDOW_MS = 5000
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') lastVisibleAt = Date.now()
+  })
+}
+
 export function useTerminal(sessionId: string | null) {
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -74,7 +86,8 @@ export function useTerminal(sessionId: string | null) {
           if (!line) return callback(undefined)
           const text = line.translateToString()
           const links: { startIndex: number; length: number; text: string }[] = []
-          const re = /(?:^|[\s('"=])((\/[\w.@+\-][\w.@+\-/]*|~\/[\w.@+\-/]+))(?=[\s)'",:;]|$)/g
+          // Path optionally followed by :line or :line:col
+          const re = /(?:^|[\s('"=])((\/[\w.@+\-][\w.@+\-/]*|~\/[\w.@+\-/]+)(?::\d+(?::\d+)?)?)(?=[\s)'",;]|$)/g
           let match: RegExpExecArray | null
           while ((match = re.exec(text)) !== null) {
             const fullMatch = match[1]
@@ -86,7 +99,10 @@ export function useTerminal(sessionId: string | null) {
             range: { start: { x: l.startIndex + 1, y: lineNumber }, end: { x: l.startIndex + l.length + 1, y: lineNumber } },
             text: l.text,
             activate(_event: MouseEvent, linkText: string) {
-              window.electronAPI.openPath(linkText)
+              const m = linkText.match(/^(.+?)(?::(\d+))?(?::\d+)?$/)
+              const path = m?.[1] ?? linkText
+              const line = m?.[2] ? parseInt(m[2], 10) : undefined
+              useStore.getState().setEditorFile(path, line)
             }
           })))
         }
@@ -148,6 +164,12 @@ export function useTerminal(sessionId: string | null) {
           const wasBusy = useStore.getState().busySessionIds.has(sessionId)
           outputBytes = 0
           useStore.getState().markSessionIdle(sessionId)
+          // Suppress busy-burst events: if the window was just unhidden, all
+          // sessions can flush queued output and finish "together" — don't
+          // mark finish/activity/notify so the sidebar doesn't reorder and
+          // the user doesn't get a wall of notifications.
+          const inFocusBurst = Date.now() - lastVisibleAt < FOCUS_BURST_WINDOW_MS
+          if (inFocusBurst) return
           // Record finish time for sorting (sidebar list)
           if (wasBusy) useStore.getState().markSessionFinished(sessionId)
           // Mark tab activity and notify when a real task finishes (was busy, now idle)

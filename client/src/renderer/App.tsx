@@ -5,6 +5,7 @@ import TabBar from './components/TabBar'
 import Terminal, { TerminalHandle } from './components/Terminal'
 import Onboarding from './components/Onboarding'
 import QuickSwitcher from './components/QuickSwitcher'
+import CodeEditor from './components/CodeEditor'
 import { getTheme, type ThemeId } from './services/themes'
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string; dmgUrl: string } | null>(null)
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [gitBranch, setGitBranch] = useState<string | null>(null)
+  const editorFilePath = useStore((s) => s.editorFilePath)
   const [quitProgress, setQuitProgress] = useState(0) // 0 = hidden, 1-100 = holding
   const clearTabActivity = useStore((s) => s.clearTabActivity)
   const setFontSize = useStore((s) => s.setFontSize)
@@ -130,15 +132,16 @@ export default function App() {
     }
   }, [activeSessionId, clearTabActivity])
 
-  // Fetch git branch for active session
+  // Fetch git branch for active session — initial + every 10s
   useEffect(() => {
     setGitBranch(null)
     const dir = activeSession?.workDir
-    if (dir) {
-      window.electronAPI?.getGitBranch(dir).then((branch) => {
-        setGitBranch(branch)
-      })
-    }
+    if (!dir) return
+    const fetchBranch = () =>
+      window.electronAPI?.getGitBranch(dir).then((branch) => setGitBranch(branch))
+    fetchBranch()
+    const interval = setInterval(fetchBranch, 10000)
+    return () => clearInterval(interval)
   }, [activeSession?.workDir])
 
   // Cmd+Left / Cmd+Right to switch tabs, Cmd+K for quick switcher, Cmd+/- for font size
@@ -272,19 +275,26 @@ export default function App() {
             )}
 
             {/* Terminals — one per tab, show/hide via CSS to keep PTYs alive */}
-            <div className="flex-1 overflow-hidden relative">
-              {openTabs.map((tabId) => (
-                <div
-                  key={tabId}
-                  className="absolute inset-0"
-                  style={{ visibility: tabId === activeSessionId ? 'visible' : 'hidden' }}
-                >
-                  <Terminal
-                    ref={(handle) => setTerminalRef(tabId, handle)}
-                    sessionId={tabId}
-                  />
+            <div className="flex-1 overflow-hidden flex min-h-0">
+              <div className="flex-1 relative min-w-0">
+                {openTabs.map((tabId) => (
+                  <div
+                    key={tabId}
+                    className="absolute inset-0"
+                    style={{ visibility: tabId === activeSessionId ? 'visible' : 'hidden' }}
+                  >
+                    <Terminal
+                      ref={(handle) => setTerminalRef(tabId, handle)}
+                      sessionId={tabId}
+                    />
+                  </div>
+                ))}
+              </div>
+              {editorFilePath && (
+                <div className="w-[45%] min-w-[320px] flex-shrink-0">
+                  <CodeEditor />
                 </div>
-              ))}
+              )}
             </div>
           </div>
         ) : (

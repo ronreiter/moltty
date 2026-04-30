@@ -20,5 +20,7 @@ export const IPC = {
   SHOW_NOTIFICATION: 'app:show-notification',
   GET_GIT_BRANCH: 'git:get-branch',
   CREATE_GIT_WORKTREE: 'git:create-worktree',
+  READ_FILE: 'fs:read-file',
+  WRITE_FILE: 'fs:write-file',
   FORCE_QUIT: 'app:force-quit'
 } as const

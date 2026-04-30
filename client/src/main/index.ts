@@ -33,7 +33,11 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      // Don't throttle timers when the window is in the background.
+      // Without this, per-session busy timers (2s) get held until refocus and
+      // fire in a burst — every tab announces "finished a task" simultaneously.
+      backgroundThrottling: false
     }
   })
 
@@ -186,6 +190,34 @@ ipcMain.handle(IPC.OPEN_PATH, (_event, filePath: string) => {
     resolved = join(homedir(), resolved.slice(2))
   }
   shell.openPath(resolved)
+})
+
+function resolveUserPath(filePath: string): string {
+  if (filePath.startsWith('~/')) return join(homedir(), filePath.slice(2))
+  return filePath
+}
+
+ipcMain.handle(IPC.READ_FILE, (_event, filePath: string) => {
+  try {
+    const resolved = resolveUserPath(filePath)
+    const stat = statSync(resolved)
+    if (stat.isDirectory()) return { ok: false, isDirectory: true }
+    if (stat.size > 5 * 1024 * 1024) return { ok: false, error: 'File too large (>5MB)' }
+    const content = readFileSync(resolved, 'utf-8')
+    return { ok: true, content }
+  } catch (e) {
+    return { ok: false, error: (e as Error).message }
+  }
+})
+
+ipcMain.handle(IPC.WRITE_FILE, (_event, filePath: string, content: string) => {
+  try {
+    const resolved = resolveUserPath(filePath)
+    writeFileSync(resolved, content, 'utf-8')
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: (e as Error).message }
+  }
 })
 
 ipcMain.handle(IPC.PICK_FOLDER, async () => {

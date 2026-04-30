@@ -1,6 +1,6 @@
 {
   "name": "moltty",
-  "version": "1.23.0",
+  "version": "1.24.0",
   "description": "Remote terminal client",
   "main": "out/main/index.js",
   "scripts": {
@@ -12,11 +12,13 @@
     "postinstall": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
+    "monaco-editor": "^0.55.1",
     "node-pty": "^1.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

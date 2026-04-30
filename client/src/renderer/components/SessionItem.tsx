@@ -57,14 +57,25 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
   const tintBg = session.colorLabel
     ? `color-mix(in srgb, ${COLOR_HEX[session.colorLabel]} 25%, transparent)`
     : undefined
+  const borderColor = session.colorLabel ? COLOR_HEX[session.colorLabel] : undefined
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/x-session-id', session.id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
       onClick={onClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      style={tintBg && !isActive ? { backgroundColor: tintBg } : undefined}
+      style={{
+        ...(tintBg && !isActive ? { backgroundColor: tintBg } : {}),
+        ...(borderColor ? { border: `1px solid ${borderColor}` } : {})
+      }}
       className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+        borderColor ? '' : 'border border-transparent'
+      } ${
         isActive ? 'bg-terminal-bg text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
       }`}
     >

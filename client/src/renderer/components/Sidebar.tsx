@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { useStore, COLOR_LABELS, ColorLabel, Session } from '../store'
 import SessionItem from './SessionItem'
+import FolderItem from './FolderItem'
 import SettingsModal from './SettingsModal'
 import type { ClaudeSession } from '../services/api'
 
@@ -43,6 +44,9 @@ export default function Sidebar() {
   const reopenSession = useStore((s) => s.reopenSession)
   const activeTabIds = useStore((s) => s.activeTabIds)
   const lastFinishedAt = useStore((s) => s.lastFinishedAt)
+  const folders = useStore((s) => s.folders)
+  const addFolder = useStore((s) => s.addFolder)
+  const setSessionFolder = useStore((s) => s.setSessionFolder)
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>([])
   const [tab, setTab] = useState<Tab>('sessions')
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -50,6 +54,7 @@ export default function Sidebar() {
   const [useWorktree, setUseWorktree] = useState(false)
   const [skipPermissions, setSkipPermissions] = useState(false)
   const [search, setSearch] = useState('')
+  const [unassignedDragOver, setUnassignedDragOver] = useState(false)
 
   useEffect(() => {
     if (tab === 'history') {
@@ -179,37 +184,118 @@ export default function Sidebar() {
         </button>
       </div>
 
+      {/* New folder button (sessions tab only) */}
+      {tab === 'sessions' && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => addFolder('New Folder')}
+            className="w-full py-1.5 text-xs text-terminal-subtext hover:text-terminal-text rounded-lg border border-terminal-border hover:border-terminal-subtext transition-colors"
+          >
+            + New Folder
+          </button>
+        </div>
+      )}
+
       {/* Tab content */}
       {tab === 'sessions' && (
         <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
-          {groupSessions(openSessions).flatMap(({ items }) =>
-            items.map((session) => (
-              <SessionItem
-                key={session.id}
-                session={session}
-                isActive={session.id === activeSessionId}
-                onClick={() => setActiveSession(session.id)}
-                onRename={(name) => updateSessionName(session.id, name)}
-                onDelete={() => deleteSession(session.id)}
-              />
-            ))
-          )}
-          {closedSessions.length > 0 && openSessions.length > 0 && (
-            <div className="border-t border-terminal-border my-1" />
-          )}
-          {groupSessions(closedSessions).flatMap(({ items }) =>
-            items.map((session) => (
-              <SessionItem
-                key={session.id}
-                session={session}
-                isActive={session.id === activeSessionId}
-                onClick={() => reopenSession(session.id)}
-                onRename={(name) => updateSessionName(session.id, name)}
-                onDelete={() => deleteSession(session.id)}
-              />
-            ))
-          )}
-          {sessions.length === 0 && (
+          {/* Folders */}
+          {folders.map((folder) => {
+            const folderOpen = openSessions.filter((s) => s.folderId === folder.id)
+            const folderClosed = closedSessions.filter((s) => s.folderId === folder.id)
+            return (
+              <React.Fragment key={folder.id}>
+                <FolderItem
+                  folder={folder}
+                  onDropSession={(sessionId) => setSessionFolder(sessionId, folder.id)}
+                />
+                {folder.expanded && (
+                  <div className="ml-3 space-y-0.5">
+                    {groupSessions(folderOpen).flatMap(({ items }) =>
+                      items.map((session) => (
+                        <SessionItem
+                          key={session.id}
+                          session={session}
+                          isActive={session.id === activeSessionId}
+                          onClick={() => setActiveSession(session.id)}
+                          onRename={(name) => updateSessionName(session.id, name)}
+                          onDelete={() => deleteSession(session.id)}
+                        />
+                      ))
+                    )}
+                    {groupSessions(folderClosed).flatMap(({ items }) =>
+                      items.map((session) => (
+                        <SessionItem
+                          key={session.id}
+                          session={session}
+                          isActive={session.id === activeSessionId}
+                          onClick={() => reopenSession(session.id)}
+                          onRename={(name) => updateSessionName(session.id, name)}
+                          onDelete={() => deleteSession(session.id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })}
+
+          {/* Unassigned drop zone + sessions */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              setUnassignedDragOver(true)
+            }}
+            onDragLeave={() => setUnassignedDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setUnassignedDragOver(false)
+              const sessionId = e.dataTransfer.getData('application/x-session-id')
+              if (sessionId) setSessionFolder(sessionId, undefined)
+            }}
+            className={`mt-1 rounded-lg transition-colors ${
+              unassignedDragOver ? 'bg-terminal-accent/10 ring-1 ring-terminal-accent' : ''
+            }`}
+          >
+            {groupSessions(openSessions.filter((s) => !s.folderId)).flatMap(({ items }) =>
+              items.map((session) => (
+                <SessionItem
+                  key={session.id}
+                  session={session}
+                  isActive={session.id === activeSessionId}
+                  onClick={() => setActiveSession(session.id)}
+                  onRename={(name) => updateSessionName(session.id, name)}
+                  onDelete={() => deleteSession(session.id)}
+                />
+              ))
+            )}
+            {closedSessions.filter((s) => !s.folderId).length > 0 &&
+              openSessions.filter((s) => !s.folderId).length > 0 && (
+                <div className="border-t border-terminal-border my-1" />
+              )}
+            {groupSessions(closedSessions.filter((s) => !s.folderId)).flatMap(({ items }) =>
+              items.map((session) => (
+                <SessionItem
+                  key={session.id}
+                  session={session}
+                  isActive={session.id === activeSessionId}
+                  onClick={() => reopenSession(session.id)}
+                  onRename={(name) => updateSessionName(session.id, name)}
+                  onDelete={() => deleteSession(session.id)}
+                />
+              ))
+            )}
+            {/* Hint area when nothing else fills the unassigned region */}
+            {sessions.filter((s) => !s.folderId).length === 0 && folders.length > 0 && (
+              <div className="text-[10px] text-terminal-subtext/60 text-center py-2 px-2">
+                Drop here to remove from folder
+              </div>
+            )}
+          </div>
+
+          {sessions.length === 0 && folders.length === 0 && (
             <p className="text-terminal-subtext text-xs text-center mt-8 px-4">
               No sessions yet. Create one or pick from History.
             </p>

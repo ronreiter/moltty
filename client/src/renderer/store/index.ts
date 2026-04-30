@@ -25,9 +25,21 @@ export interface Session {
   skipPermissions?: boolean
   createdAt: string
   colorLabel?: ColorLabel
+  folderId?: string
 }
 
-type SessionData = { sessions: Session[]; openTabs: string[]; activeSessionId: string | null }
+export interface Folder {
+  id: string
+  name: string
+  expanded: boolean
+}
+
+type SessionData = {
+  sessions: Session[]
+  openTabs: string[]
+  activeSessionId: string | null
+  folders?: Folder[]
+}
 
 function migrateData(data: SessionData): SessionData {
   // Migrate old status values and reopen sessions that had tabs open
@@ -42,23 +54,32 @@ function migrateData(data: SessionData): SessionData {
       status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
     }
   })
+  data.folders = data.folders || []
   return data
 }
 
-function saveSessions(sessions: Session[], openTabs: string[], activeSessionId: string | null): void {
+function saveSessions(
+  sessions: Session[],
+  openTabs: string[],
+  activeSessionId: string | null,
+  folders: Folder[]
+): void {
   if (window.electronAPI?.saveSessions) {
-    window.electronAPI.saveSessions(JSON.stringify({ sessions, openTabs, activeSessionId }))
+    window.electronAPI.saveSessions(JSON.stringify({ sessions, openTabs, activeSessionId, folders }))
   }
 }
 
 interface AppState {
   sessions: Session[]
+  folders: Folder[]
   activeSessionId: string | null
   openTabs: string[]
   loadedSessionIds: Set<string>
   activeTabIds: Set<string>
   busySessionIds: Set<string>
   lastFinishedAt: Record<string, number>
+  editorFilePath: string | null
+  editorLine: number | null
   hydrated: boolean
   settings: MolttySettings | null
   settingsLoaded: boolean
@@ -84,18 +105,27 @@ interface AppState {
   markSessionFinished: (id: string) => void
   reopenSession: (id: string) => void
   setSessionColor: (id: string, color: ColorLabel | undefined) => void
+  setEditorFile: (filePath: string | null, line?: number | null) => void
+  addFolder: (name: string) => string
+  removeFolder: (id: string) => void
+  renameFolder: (id: string, name: string) => void
+  toggleFolder: (id: string) => void
+  setSessionFolder: (sessionId: string, folderId: string | undefined) => void
   setSettings: (settings: MolttySettings) => void
   setFontSize: (size: number) => void
 }
 
 export const useStore = create<AppState>((set) => ({
   sessions: [],
+  folders: [],
   activeSessionId: null,
   openTabs: [],
   loadedSessionIds: new Set<string>(),
   activeTabIds: new Set<string>(),
   busySessionIds: new Set<string>(),
   lastFinishedAt: {},
+  editorFilePath: null,
+  editorLine: null,
   hydrated: false,
   settings: null,
   settingsLoaded: false,
@@ -111,6 +141,7 @@ export const useStore = create<AppState>((set) => ({
         const migrated = migrateData(data)
         set({
           sessions: migrated.sessions,
+          folders: migrated.folders || [],
           openTabs: migrated.openTabs || [],
           activeSessionId: migrated.activeSessionId || null,
           hydrated: true,
@@ -290,6 +321,40 @@ export const useStore = create<AppState>((set) => ({
       )
     })),
 
+  setEditorFile: (filePath, line) =>
+    set({ editorFilePath: filePath, editorLine: line ?? null }),
+
+  addFolder: (name) => {
+    const id = crypto.randomUUID()
+    set((state) => ({
+      folders: [...state.folders, { id, name, expanded: true }]
+    }))
+    return id
+  },
+
+  removeFolder: (id) =>
+    set((state) => ({
+      folders: state.folders.filter((f) => f.id !== id),
+      sessions: state.sessions.map((s) => (s.folderId === id ? { ...s, folderId: undefined } : s))
+    })),
+
+  renameFolder: (id, name) =>
+    set((state) => ({
+      folders: state.folders.map((f) => (f.id === id ? { ...f, name } : f))
+    })),
+
+  toggleFolder: (id) =>
+    set((state) => ({
+      folders: state.folders.map((f) => (f.id === id ? { ...f, expanded: !f.expanded } : f))
+    })),
+
+  setSessionFolder: (sessionId, folderId) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, folderId } : s
+      )
+    })),
+
   setSettings: (settings) => {
     set({ settings })
     window.electronAPI?.saveSettings(JSON.stringify(settings))
@@ -301,6 +366,6 @@ export const useStore = create<AppState>((set) => ({
 // Save to main process on every state change (skip until hydrated)
 useStore.subscribe((state) => {
   if (state.hydrated) {
-    saveSessions(state.sessions, state.openTabs, state.activeSessionId)
+    saveSessions(state.sessions, state.openTabs, state.activeSessionId, state.folders)
   }
 })
