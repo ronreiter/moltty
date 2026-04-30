@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { WebglAddon } from '@xterm/addon-webgl'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useStore } from '../store'
@@ -72,15 +71,10 @@ export function useTerminal(sessionId: string | null) {
       terminal.open(container)
       fitAddon.fit()
 
-      try {
-        const webglAddon = new WebglAddon()
-        webglAddon.onContextLoss(() => {
-          webglAddon.dispose()
-        })
-        terminal.loadAddon(webglAddon)
-      } catch {
-        // WebGL not available
-      }
+      // Use the default DOM/canvas renderer instead of WebGL: the WebGL
+      // addon's glyph cache occasionally desyncs and leaves stale columns of
+      // text drawn on top of fresh content, especially after resize and during
+      // heavy redraw bursts from full-screen TUIs.
 
       // Web links: click to open URLs in browser
       terminal.loadAddon(new WebLinksAddon((_event, uri) => {
@@ -121,10 +115,14 @@ export function useTerminal(sessionId: string | null) {
       let busyStartTimer: ReturnType<typeof setTimeout> | null = null
       let outputBytes = 0
       let lastInputTime = 0
+      let lastResizeAt = 0
+      const startedAt = Date.now()
       let inOsc = false
       let suppressNotifications = true // suppress during initial load
       const BUSY_THRESHOLD = 500 // bytes of output before showing busy indicator
       const INPUT_ECHO_WINDOW = 150 // ms to ignore output after input (echo)
+      const RESIZE_QUIET_WINDOW = 2000 // ms — suppress busy detection after a resize-triggered redraw
+      const SPAWN_QUIET_WINDOW = 3000 // ms — suppress busy detection during initial spawn output
 
       // Persistent scroll state — survives across async write batches
       let stayAtBottom = true
@@ -151,8 +149,15 @@ export function useTerminal(sessionId: string | null) {
             terminal.scrollToBottom()
           }
         })
+        // Skip busy/activity detection during quiet windows — output during these
+        // windows is from app/terminal redraws, not from a real task running:
+        //   - just after a window/fullscreen resize (TTY redraws on SIGWINCH)
+        //   - during initial spawn (banners, prompts, restore-session output)
+        const now = Date.now()
+        if (now - lastResizeAt < RESIZE_QUIET_WINDOW) return
+        if (now - startedAt < SPAWN_QUIET_WINDOW) return
         // Track busy state — only mark busy after sustained output, ignore input echo
-        const isEcho = Date.now() - lastInputTime < INPUT_ECHO_WINDOW
+        const isEcho = now - lastInputTime < INPUT_ECHO_WINDOW
         if (!isEcho) outputBytes += data.length
         if (outputBytes >= BUSY_THRESHOLD && !useStore.getState().busySessionIds.has(sessionId)) {
           useStore.getState().markSessionBusy(sessionId)
@@ -279,6 +284,10 @@ export function useTerminal(sessionId: string | null) {
       })
 
       const resizeObserver = new ResizeObserver(() => {
+        // Stamp before notifying the PTY so the redraw output that flows back
+        // (often >500 bytes from full-screen apps) is treated as a quiet redraw
+        // rather than a real task.
+        lastResizeAt = Date.now()
         fitAddon.fit()
         if (stayAtBottom) {
           terminal.scrollToBottom()
