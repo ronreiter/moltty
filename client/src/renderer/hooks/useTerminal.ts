@@ -8,6 +8,14 @@ import { useStore } from '../store'
 import { CODING_TOOLS } from '../services/api'
 import { getTheme, type ThemeId } from '../services/themes'
 
+// Open a local file path in the Monaco side pane, parsing optional :line[:col] suffix.
+function openFilePathInEditor(rawPath: string) {
+  const m = rawPath.match(/^(.+?)(?::(\d+))?(?::\d+)?$/)
+  const path = m?.[1] ?? rawPath
+  const line = m?.[2] ? parseInt(m[2], 10) : undefined
+  useStore.getState().setEditorFile(path, line)
+}
+
 // Track last time the document became visible. Used to suppress busy-burst
 // notifications: when the OS sleeps or the window is hidden long enough that
 // queued PTY output arrives in a flood, the per-session busy timers all fire
@@ -45,8 +53,8 @@ export function useTerminal(sessionId: string | null) {
           allowNonHttpProtocols: true,
           activate: (_event: MouseEvent, uri: string) => {
             if (uri.startsWith('file://') || uri.startsWith('/') || uri.startsWith('~/')) {
-              const path = uri.replace('file://', '')
-              window.electronAPI.openPath(path)
+              const path = uri.replace(/^file:\/\//, '')
+              openFilePathInEditor(path)
             } else {
               window.electronAPI.openExternal(uri)
             }
@@ -99,10 +107,7 @@ export function useTerminal(sessionId: string | null) {
             range: { start: { x: l.startIndex + 1, y: lineNumber }, end: { x: l.startIndex + l.length + 1, y: lineNumber } },
             text: l.text,
             activate(_event: MouseEvent, linkText: string) {
-              const m = linkText.match(/^(.+?)(?::(\d+))?(?::\d+)?$/)
-              const path = m?.[1] ?? linkText
-              const line = m?.[2] ? parseInt(m[2], 10) : undefined
-              useStore.getState().setEditorFile(path, line)
+              openFilePathInEditor(linkText)
             }
           })))
         }
