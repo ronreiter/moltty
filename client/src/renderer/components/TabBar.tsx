@@ -72,7 +72,7 @@ export default function TabBar() {
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={handleDrop}
                 onClick={() => openTab(tabId)}
-                className={`titlebar-no-drag group flex-shrink-0 flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors max-w-[200px] ${
+                className={`titlebar-no-drag group flex-shrink-0 flex items-center gap-2 pl-3 pr-4 py-2 cursor-pointer border-r border-terminal-border text-sm font-medium whitespace-nowrap transition-colors max-w-[360px] ${
                   isActive
                     ? 'bg-terminal-bg text-terminal-accent'
                     : 'text-terminal-subtext hover:text-terminal-text hover:bg-terminal-bg/50'
@@ -87,16 +87,16 @@ export default function TabBar() {
                 >
                   ×
                 </button>
-                <span className="truncate" title={session.name}>{session.name}</span>
-                {hasActivity && !isActive && (
-                  <span className="w-2 h-2 rounded-full bg-terminal-accent flex-shrink-0" />
-                )}
                 {session.colorLabel && (
                   <span
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: COLOR_HEX[session.colorLabel] }}
                     title={session.colorLabel}
                   />
+                )}
+                <span className="truncate" title={session.name}>{session.name}</span>
+                {hasActivity && !isActive && (
+                  <span className="w-2 h-2 rounded-full bg-terminal-accent flex-shrink-0" />
                 )}
               </div>
             )

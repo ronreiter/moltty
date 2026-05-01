@@ -6,7 +6,7 @@ export type ClaudeSession = {
   summary: string
 }
 
-export type CodingTool = 'claude' | 'opencode' | 'gemini' | 'codex' | 'aider' | 'gh-copilot' | 'amp'
+export type CodingTool = 'claude' | 'opencode' | 'gemini' | 'codex' | 'aider'
 
 export type MolttySettings = {
   codingTool: CodingTool
@@ -16,14 +16,24 @@ export type MolttySettings = {
   autoUpdate?: boolean
 }
 
-export const CODING_TOOLS: { id: CodingTool; name: string; command: string; description: string; resumeArg?: string }[] = [
+// Per-tool session config:
+// - resumeArg: CLI flag to resume an existing session (e.g. `--resume <id>`).
+// - sessionsDir: home-relative path where the tool persists session files;
+//   the main process polls this after spawn to capture the new session ID
+//   so we can resume on reload.
+export const CODING_TOOLS: {
+  id: CodingTool
+  name: string
+  command: string
+  description: string
+  resumeArg?: string
+  sessionsDir?: string
+}[] = [
   { id: 'claude', name: 'Claude Code', command: 'claude', description: 'Anthropic', resumeArg: '--resume' },
   { id: 'opencode', name: 'OpenCode', command: 'opencode', description: 'Open source' },
-  { id: 'gemini', name: 'Gemini CLI', command: 'gemini', description: 'Google', resumeArg: '--resume' },
+  { id: 'gemini', name: 'Gemini CLI', command: 'gemini', description: 'Google', resumeArg: '--resume', sessionsDir: '.gemini/sessions' },
   { id: 'codex', name: 'Codex', command: 'codex', description: 'OpenAI' },
   { id: 'aider', name: 'Aider', command: 'aider', description: 'Open source' },
-  { id: 'gh-copilot', name: 'GitHub Copilot', command: 'gh copilot', description: 'GitHub' },
-  { id: 'amp', name: 'Amp', command: 'amp', description: 'Sourcegraph', resumeArg: '--resume' },
 ]
 
 declare global {

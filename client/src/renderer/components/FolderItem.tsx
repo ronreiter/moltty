@@ -53,7 +53,7 @@ export default function FolderItem({ folder, onDropSession }: Props) {
       <span className="text-terminal-subtext text-[10px] w-3 flex-shrink-0">
         {folder.expanded ? '▼' : '▶'}
       </span>
-      <svg className="w-3.5 h-3.5 text-terminal-subtext flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-5 h-5 text-terminal-subtext flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
         <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
       </svg>
       {editing ? (

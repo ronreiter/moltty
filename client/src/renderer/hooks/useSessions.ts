@@ -13,7 +13,12 @@ export function useSessions() {
   } = useStore()
 
   const createSession = useCallback(
-    (name?: string, toolSessionId?: string, workDir?: string, opts?: { skipPermissions?: boolean; displayDir?: string }) => {
+    (
+      name?: string,
+      toolSessionId?: string,
+      workDir?: string,
+      opts?: { skipPermissions?: boolean; displayDir?: string; useWorktree?: boolean }
+    ) => {
       const session: Session = {
         id: crypto.randomUUID(),
         name: name || 'New Session',
@@ -22,6 +27,7 @@ export function useSessions() {
         displayDir: opts?.displayDir,
         toolSessionId,
         skipPermissions: opts?.skipPermissions,
+        useWorktree: opts?.useWorktree,
         createdAt: new Date().toISOString()
       }
       addSession(session)

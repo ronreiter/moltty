@@ -33,6 +33,30 @@ body {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Dark scrollbars everywhere else */
+* {
+  scrollbar-color: var(--terminal-border) transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--terminal-border);
+  border-radius: 6px;
+  border: 2px solid var(--terminal-bg);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--terminal-subtext);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Pulsing dot: transparent to green */
 @keyframes pulse-dot {
   0%, 100% { opacity: 0; }

@@ -250,6 +250,11 @@ export function useTerminal(sessionId: string | null) {
       if (session?.skipPermissions) {
         command += ' --enable-auto-mode'
       }
+      // Claude's native worktree flag — only on first spawn, not when resuming
+      // (the resumed session already lives in the previously-created worktree).
+      if (session?.useWorktree && toolDef.id === 'claude' && !session?.toolSessionId) {
+        command += ' --worktree'
+      }
       console.log(`[PTY_SPAWN] session=${sessionId} toolSessionId=${session?.toolSessionId} command=${command}`)
       const loadZshrc = settings?.loadZshrc ?? true
       window.electronAPI.spawnLocalPty(sessionId, command, session?.workDir || '~', loadZshrc).then((result) => {

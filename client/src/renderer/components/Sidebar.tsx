@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { useStore, COLOR_LABELS, ColorLabel, Session } from '../store'
 import SessionItem from './SessionItem'
@@ -55,6 +55,45 @@ export default function Sidebar() {
   const [skipPermissions, setSkipPermissions] = useState(false)
   const [search, setSearch] = useState('')
   const [unassignedDragOver, setUnassignedDragOver] = useState(false)
+  const [activeOnly, setActiveOnly] = useState(false)
+  const sessionsScrollRef = useRef<HTMLDivElement>(null)
+  const autoScrollRef = useRef<{ raf: number | null; dir: 0 | 1 | -1 }>({ raf: null, dir: 0 })
+
+  // Auto-scroll the sessions list while dragging a session near the top/bottom edge.
+  // Runs as an rAF loop so motion is smooth and stops the moment the cursor
+  // leaves the edge zone or the drag ends.
+  const handleDragAutoScroll = (e: React.DragEvent) => {
+    const el = sessionsScrollRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const EDGE = 60 // px from edge that triggers scroll
+    const SPEED = 8 // px per frame
+    const distFromTop = e.clientY - rect.top
+    const distFromBottom = rect.bottom - e.clientY
+    let dir: 0 | 1 | -1 = 0
+    if (distFromTop < EDGE && distFromTop >= 0) dir = -1
+    else if (distFromBottom < EDGE && distFromBottom >= 0) dir = 1
+    autoScrollRef.current.dir = dir
+    if (dir !== 0 && autoScrollRef.current.raf == null) {
+      const tick = () => {
+        const d = autoScrollRef.current.dir
+        if (d === 0 || !sessionsScrollRef.current) {
+          autoScrollRef.current.raf = null
+          return
+        }
+        sessionsScrollRef.current.scrollTop += d * SPEED
+        autoScrollRef.current.raf = requestAnimationFrame(tick)
+      }
+      autoScrollRef.current.raf = requestAnimationFrame(tick)
+    }
+  }
+  const stopDragAutoScroll = () => {
+    autoScrollRef.current.dir = 0
+    if (autoScrollRef.current.raf != null) {
+      cancelAnimationFrame(autoScrollRef.current.raf)
+      autoScrollRef.current.raf = null
+    }
+  }
 
   useEffect(() => {
     if (tab === 'history') {
@@ -79,7 +118,12 @@ export default function Sidebar() {
       let workDir = folder
       let name = shortPath(folder)
       let displayDir: string | undefined
-      if (useWorktree) {
+      const tool = useStore.getState().settings?.codingTool
+      const claudeNativeWorktree = useWorktree && tool === 'claude'
+      // For Claude, defer worktree creation to the native `--worktree` flag.
+      // For other tools that don't have a native flag, fall back to our own
+      // git-worktree implementation.
+      if (useWorktree && !claudeNativeWorktree) {
         const result = await window.electronAPI.createGitWorktree(folder)
         if (result.ok && result.path) {
           workDir = result.path
@@ -87,7 +131,11 @@ export default function Sidebar() {
           name = `${shortPath(folder)} [${result.branch}]`
         }
       }
-      createSession(name, undefined, workDir, { skipPermissions, displayDir })
+      createSession(name, undefined, workDir, {
+        skipPermissions,
+        displayDir,
+        useWorktree: claudeNativeWorktree
+      })
     } catch {
       // dialog failed, do nothing
     }
@@ -106,7 +154,9 @@ export default function Sidebar() {
     return sortKey(b) - sortKey(a)
   }
   const openSessions = sessions.filter((s) => s.status === 'open' && matchSession(s)).sort(sortBySession)
-  const closedSessions = sessions.filter((s) => s.status === 'closed' && matchSession(s)).sort(sortBySession)
+  const closedSessions = activeOnly
+    ? []
+    : sessions.filter((s) => s.status === 'closed' && matchSession(s)).sort(sortBySession)
 
   const groupOrder: (ColorLabel | undefined)[] = [...COLOR_LABELS, undefined]
   const groupSessions = (list: Session[]): Array<{ color: ColorLabel | undefined; items: Session[] }> =>
@@ -151,13 +201,22 @@ export default function Sidebar() {
       </div>
 
       {/* Search */}
-      <div className="px-3 pb-2">
+      <div className="px-3 pb-2 flex flex-col gap-1.5">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search sessions..."
           className="w-full px-2.5 py-1.5 text-xs bg-terminal-bg text-terminal-text rounded-lg border border-terminal-border outline-none focus:border-terminal-accent placeholder:text-terminal-subtext/50"
         />
+        <label className="flex items-center gap-2 px-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={activeOnly}
+            onChange={(e) => setActiveOnly(e.target.checked)}
+            className="w-3 h-3 rounded accent-terminal-accent"
+          />
+          <span className="text-xs text-terminal-subtext">Active only</span>
+        </label>
       </div>
 
       {/* Tabs */}
@@ -189,16 +248,26 @@ export default function Sidebar() {
         <div className="px-3 pb-2">
           <button
             onClick={() => addFolder('New Folder')}
-            className="w-full py-1.5 text-xs text-terminal-subtext hover:text-terminal-text rounded-lg border border-terminal-border hover:border-terminal-subtext transition-colors"
+            className="w-full py-1.5 text-xs text-terminal-subtext hover:text-terminal-text rounded-lg border border-terminal-border hover:border-terminal-subtext transition-colors flex items-center justify-center gap-1.5"
           >
-            + New Folder
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+            </svg>
+            New Folder
           </button>
         </div>
       )}
 
       {/* Tab content */}
       {tab === 'sessions' && (
-        <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+        <div
+          ref={sessionsScrollRef}
+          onDragOver={handleDragAutoScroll}
+          onDragLeave={stopDragAutoScroll}
+          onDrop={stopDragAutoScroll}
+          onDragEnd={stopDragAutoScroll}
+          className="flex-1 overflow-y-auto px-2 space-y-0.5"
+        >
           {/* Folders */}
           {folders.map((folder) => {
             const folderOpen = openSessions.filter((s) => s.folderId === folder.id)

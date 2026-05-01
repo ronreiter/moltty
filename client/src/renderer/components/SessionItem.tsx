@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Session, useStore, COLOR_HEX } from '../store'
 import SessionContextMenu from './SessionContextMenu'
+import ConfirmDialog from './ConfirmDialog'
 
 interface Props {
   session: Session
@@ -17,10 +18,12 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
   const hasActivity = useStore((s) => s.activeTabIds.has(session.id))
   const setSessionColor = useStore((s) => s.setSessionColor)
   const restartSession = useStore((s) => s.restartSession)
+  const cloneSession = useStore((s) => s.cloneSession)
   const closeTab = useStore((s) => s.closeTab)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(session.name)
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
+  const [confirm, setConfirm] = useState<'close' | 'remove' | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -58,8 +61,10 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
   }
 
   const tintBg = session.colorLabel
-    ? `color-mix(in srgb, ${COLOR_HEX[session.colorLabel]} 25%, transparent)`
-    : undefined
+    ? `color-mix(in srgb, ${COLOR_HEX[session.colorLabel]} ${isActive ? 25 : 10}%, transparent)`
+    : isActive
+      ? 'color-mix(in srgb, var(--terminal-accent) 12%, transparent)'
+      : undefined
   const borderColor = session.colorLabel ? COLOR_HEX[session.colorLabel] : undefined
 
   return (
@@ -73,13 +78,20 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       style={{
-        ...(tintBg && !isActive ? { backgroundColor: tintBg } : {}),
-        ...(borderColor ? { border: `1px solid ${borderColor}` } : {})
+        ...(tintBg ? { backgroundColor: tintBg } : {}),
+        ...(borderColor ? { border: `1px solid ${borderColor}` } : {}),
+        ...(isActive
+          ? { boxShadow: `inset 0 0 0 2px ${borderColor ?? 'var(--terminal-accent)'}` }
+          : {})
       }}
-      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer ${
         borderColor ? '' : 'border border-transparent'
       } ${
-        isActive ? 'bg-terminal-bg text-terminal-accent' : 'hover:bg-terminal-bg text-terminal-text'
+        isActive
+          ? 'text-terminal-accent'
+          : borderColor
+            ? 'text-terminal-text'
+            : 'hover:bg-terminal-bg text-terminal-text'
       }`}
     >
       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor} ${isBusy ? 'animate-pulse-dot' : ''}`} />
@@ -111,12 +123,14 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
       <button
         onClick={(e) => {
           e.stopPropagation()
-          onDelete()
+          setConfirm('remove')
         }}
-        className="opacity-0 group-hover:opacity-100 text-terminal-subtext hover:text-terminal-red transition-all text-xs"
-        title="Delete session"
+        className="opacity-0 group-hover:opacity-100 text-terminal-subtext hover:text-terminal-red transition-all"
+        title="Remove session"
       >
-        ×
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+        </svg>
       </button>
       {menuPos && (
         <SessionContextMenu
@@ -125,8 +139,40 @@ export default function SessionItem({ session, isActive, onClick, onRename, onDe
           current={session.colorLabel}
           onPickColor={(color) => setSessionColor(session.id, color)}
           onRestart={() => restartSession(session.id)}
+          onRename={() => {
+            setEditName(session.name)
+            setEditing(true)
+          }}
+          onClone={() => cloneSession(session.id)}
           onClose={() => (onClose ? onClose() : closeTab(session.id))}
+          onRemove={() => setConfirm('remove')}
           onDismiss={() => setMenuPos(null)}
+        />
+      )}
+      {confirm === 'close' && (
+        <ConfirmDialog
+          title="Close session?"
+          message={`Close "${session.name}"? The session will move to the closed list — you can reopen it later.`}
+          confirmLabel="Close"
+          onConfirm={() => {
+            setConfirm(null)
+            if (onClose) onClose()
+            else closeTab(session.id)
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+      {confirm === 'remove' && (
+        <ConfirmDialog
+          title="Remove session?"
+          message={`Permanently remove "${session.name}"? This deletes the session record and cannot be undone.`}
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => {
+            setConfirm(null)
+            onDelete()
+          }}
+          onCancel={() => setConfirm(null)}
         />
       )}
     </div>

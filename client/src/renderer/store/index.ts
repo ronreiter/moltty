@@ -23,6 +23,9 @@ export interface Session {
   displayDir?: string
   toolSessionId?: string
   skipPermissions?: boolean
+  // When true, the tool launches with its native worktree flag (for Claude:
+  // `--worktree`). The tool creates and manages the worktree itself.
+  useWorktree?: boolean
   createdAt: string
   colorLabel?: ColorLabel
   folderId?: string
@@ -106,6 +109,7 @@ interface AppState {
   markSessionFinished: (id: string) => void
   reopenSession: (id: string) => void
   restartSession: (id: string) => void
+  cloneSession: (id: string) => string | null
   setSessionColor: (id: string, color: ColorLabel | undefined) => void
   setEditorFile: (filePath: string | null, line?: number | null) => void
   addFolder: (name: string) => string
@@ -337,6 +341,36 @@ export const useStore = create<AppState>((set) => ({
         activeSessionId: newId
       }
     }),
+
+  cloneSession: (id) => {
+    let newId: string | null = null
+    set((state) => {
+      const old = state.sessions.find((s) => s.id === id)
+      if (!old) return state
+      newId = crypto.randomUUID()
+      const cloned: Session = {
+        id: newId,
+        name: `${old.name} (copy)`,
+        status: 'open',
+        workDir: old.workDir,
+        displayDir: old.displayDir,
+        // Don't carry the toolSessionId — cloning starts a fresh tool session
+        // in the same directory; otherwise both clone and original would
+        // resume the same conversation.
+        toolSessionId: undefined,
+        skipPermissions: old.skipPermissions,
+        colorLabel: old.colorLabel,
+        folderId: old.folderId,
+        createdAt: new Date().toISOString()
+      }
+      return {
+        sessions: [cloned, ...state.sessions],
+        openTabs: [...state.openTabs, newId],
+        activeSessionId: newId
+      }
+    })
+    return newId
+  },
 
   setSessionColor: (id, color) =>
     set((state) => ({
