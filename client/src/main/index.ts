@@ -43,9 +43,21 @@ function createWindow(): void {
 
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Log renderer crashes / errors so they show up in the dev terminal output
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('RENDER_PROCESS_GONE:', details)
+  })
+  mainWindow.webContents.on('did-fail-load', (_event, code, desc, url) => {
+    console.error(`DID_FAIL_LOAD code=${code} url=${url} desc=${desc}`)
+  })
+  mainWindow.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 2) console.error(`RENDERER_${level === 3 ? 'ERROR' : 'WARN'}: ${message}`)
+  })
 
   // Prevent Electron from navigating when files are dropped
   mainWindow.webContents.on('will-navigate', (event) => {

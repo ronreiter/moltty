@@ -1,8 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { CanvasAddon } from '@xterm/addon-canvas'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { UnicodeGraphemesAddon } from '@xterm/addon-unicode-graphemes'
 import { useStore } from '../store'
 import { CODING_TOOLS } from '../services/api'
 import { getTheme, type ThemeId } from '../services/themes'
@@ -43,6 +45,9 @@ export function useTerminal(sessionId: string | null) {
       const appTheme = getTheme(themeId)
 
       const terminal = new Terminal({
+        // Required for UnicodeGraphemesAddon, which uses xterm's proposed
+        // `terminal.unicode` API.
+        allowProposedApi: true,
         cursorBlink: false,
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
@@ -68,13 +73,25 @@ export function useTerminal(sessionId: string | null) {
       terminal.loadAddon(searchAddon)
       searchAddonRef.current = searchAddon
 
+      // Upgrade Unicode width tables to v15 with grapheme awareness so emoji
+      // (and emoji-ZWJ sequences) are correctly classified as wide (2 cells).
+      // Without this, xterm uses Unicode 6 tables which treat many emoji as
+      // width 1, and Apple Color Emoji renders at its natural size — visibly
+      // overflowing the cell, especially with the WebGL renderer's atlas.
+      terminal.loadAddon(new UnicodeGraphemesAddon())
+      terminal.unicode.activeVersion = '15-graphemes'
+
       terminal.open(container)
       fitAddon.fit()
 
-      // Use the default DOM/canvas renderer instead of WebGL: the WebGL
-      // addon's glyph cache occasionally desyncs and leaves stale columns of
-      // text drawn on top of fresh content, especially after resize and during
-      // heavy redraw bursts from full-screen TUIs.
+      // Canvas renderer: pixel-perfect cell grid (no DOM-renderer line-width
+      // jitter on scroll) and per-glyph browser rasterization (correct emoji
+      // sizing, no WebGL atlas oversized-emoji bug).
+      try {
+        terminal.loadAddon(new CanvasAddon())
+      } catch {
+        // Canvas not available
+      }
 
       // Web links: click to open URLs in browser
       terminal.loadAddon(new WebLinksAddon((_event, uri) => {

@@ -141,6 +141,14 @@ export default function Sidebar() {
     }
   }
 
+  // Cmd+T from App dispatches this event; route it to the same flow as the
+  // sidebar button so the worktree / auto-mode toggles still apply.
+  useEffect(() => {
+    const handler = () => { newSessionWithFolder() }
+    window.addEventListener('moltty:new-session', handler)
+    return () => window.removeEventListener('moltty:new-session', handler)
+  })
+
   const lowerSearch = search.toLowerCase()
   const matchSession = (s: { name?: string; workDir?: string }) =>
     !search || s.name?.toLowerCase().includes(lowerSearch) || s.workDir?.toLowerCase().includes(lowerSearch)

@@ -156,6 +156,21 @@ export default function App() {
         return
       }
 
+      if (e.key === 't') {
+        e.preventDefault()
+        // Sidebar owns the new-session UI state (worktree/auto-mode toggles +
+        // folder picker). Dispatch an event for it to handle.
+        window.dispatchEvent(new Event('moltty:new-session'))
+        return
+      }
+
+      if (e.key === 'w') {
+        e.preventDefault()
+        const active = useStore.getState().activeSessionId
+        if (active) useStore.getState().closeTab(active)
+        return
+      }
+
       if (e.key === '=' || e.key === '+') {
         e.preventDefault()
         setFontSize(useStore.getState().fontSize + 1)
