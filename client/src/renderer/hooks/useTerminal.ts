@@ -84,10 +84,16 @@ export function useTerminal(sessionId: string | null) {
       terminal.open(container)
       fitAddon.fit()
 
+      // Auto-name from terminal title only when it's likely meaningful.
+      // Many AI tools (Claude Code in particular) just emit a static product
+      // name like "Claude Code", which would clobber the more useful default
+      // (the cwd shortpath). Skip those generic strings; for Claude we fetch
+      // the conversation summary from the JSONL below.
       terminal.onTitleChange((title) => {
-        if (title && sessionId) {
-          useStore.getState().renameSession(sessionId, title)
-        }
+        if (!title || !sessionId) return
+        const generic = ['claude code', 'claude', 'gemini', 'codex', 'aider', 'opencode']
+        if (generic.includes(title.trim().toLowerCase())) return
+        useStore.getState().autoRenameSession(sessionId, title)
       })
 
       // Canvas renderer: pixel-perfect cell grid (no DOM-renderer line-width
@@ -249,10 +255,35 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().setToolSessionId(sessionId, toolId)
       }) || (() => {})
 
+      // Periodically pull a meaningful auto-name from the tool's own session
+      // log (Claude Code: first user message in the JSONL). Stops once we
+      // successfully rename. Cleared in the cleanup chain below.
+      let summaryPollInterval: ReturnType<typeof setInterval> | null = null
+      const pollSummary = async () => {
+        const sess = useStore.getState().sessions.find((s) => s.id === sessionId)
+        if (!sess || sess.nameIsUserSet) {
+          if (summaryPollInterval) clearInterval(summaryPollInterval)
+          summaryPollInterval = null
+          return
+        }
+        const tool = useStore.getState().settings?.codingTool
+        if (!tool || !sess.toolSessionId) return
+        const summary = await window.electronAPI.getToolSessionSummary?.(tool, sess.toolSessionId)
+        if (summary && summary !== sess.name) {
+          useStore.getState().autoRenameSession(sessionId, summary)
+          if (summaryPollInterval) clearInterval(summaryPollInterval)
+          summaryPollInterval = null
+        }
+      }
+      summaryPollInterval = setInterval(pollSummary, 5000)
+      // Try once shortly after spawn so we don't wait the full interval.
+      setTimeout(pollSummary, 1500)
+
       cleanupListenersRef.current = () => {
         removeOutput()
         removeExit()
         removeToolDetected()
+        if (summaryPollInterval) clearInterval(summaryPollInterval)
       }
 
       const settings = useStore.getState().settings

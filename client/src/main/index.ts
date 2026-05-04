@@ -64,6 +64,18 @@ function createWindow(): void {
     event.preventDefault()
   })
 
+  // Block Cmd/Ctrl+R (page reload). Reloading the renderer kills React state,
+  // scroll positions, and all in-flight UI work; PTYs in main survive but the
+  // user-visible app state is lost. Cmd+R should pass through to the active
+  // tool inside the terminal instead.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const key = input.key.toLowerCase()
+    if ((input.meta || input.control) && (key === 'r' || input.code === 'F5')) {
+      event.preventDefault()
+    }
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -190,6 +202,58 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
 
   results.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   return results
+})
+
+// Look up a session summary by tool + session id (used to auto-name a live
+// session from a meaningful source, since Claude's terminal title is just
+// the static string "Claude Code").
+ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionId: string) => {
+  if (tool !== 'claude' || !toolSessionId) return ''
+  const projectsDir = join(homedir(), '.claude', 'projects')
+  try {
+    const dirs = readdirSync(projectsDir)
+    for (const dir of dirs) {
+      const filePath = join(projectsDir, dir, `${toolSessionId}.jsonl`)
+      try {
+        if (!statSync(filePath).isFile()) continue
+      } catch {
+        continue
+      }
+      try {
+        const fd = require('fs').openSync(filePath, 'r')
+        const headBuf = Buffer.alloc(Math.min(64 * 1024, statSync(filePath).size))
+        require('fs').readSync(fd, headBuf, 0, headBuf.length, 0)
+        require('fs').closeSync(fd)
+        const raw = headBuf.toString('utf-8')
+        for (const line of raw.split('\n')) {
+          if (!line) continue
+          try {
+            const obj = JSON.parse(line)
+            if (obj.type === 'user' && obj.message) {
+              const content = obj.message.content
+              let text = ''
+              if (Array.isArray(content)) {
+                const tc = content.find((c: { type: string }) => c.type === 'text')
+                if (tc) text = tc.text
+              } else if (typeof content === 'string') {
+                text = content
+              }
+              text = text.trim().split('\n')[0].slice(0, 80)
+              if (text && !text.toLowerCase().includes('interrupted')) return text
+            }
+          } catch {
+            // skip unparseable lines
+          }
+        }
+        return ''
+      } catch {
+        return ''
+      }
+    }
+  } catch {
+    // ~/.claude/projects doesn't exist
+  }
+  return ''
 })
 
 ipcMain.handle(IPC.OPEN_EXTERNAL, (_event, url: string) => {

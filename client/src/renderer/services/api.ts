@@ -58,6 +58,7 @@ declare global {
       createGitWorktree: (workDir: string) => Promise<{ ok: boolean; path?: string; branch?: string; error?: string }>
       readFile: (filePath: string) => Promise<{ ok: boolean; content?: string; isDirectory?: boolean; error?: string }>
       writeFile: (filePath: string, content: string) => Promise<{ ok: boolean; error?: string }>
+      getToolSessionSummary: (tool: string, toolSessionId: string) => Promise<string>
       showNotification: (title: string, body: string) => void
       sendFileDrop: (text: string) => void
       setActiveSessionMain: (sessionId: string) => void

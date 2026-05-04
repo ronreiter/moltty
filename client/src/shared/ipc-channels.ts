@@ -22,5 +22,6 @@ export const IPC = {
   CREATE_GIT_WORKTREE: 'git:create-worktree',
   READ_FILE: 'fs:read-file',
   WRITE_FILE: 'fs:write-file',
+  GET_TOOL_SESSION_SUMMARY: 'tool:get-session-summary',
   FORCE_QUIT: 'app:force-quit'
 } as const

@@ -26,6 +26,9 @@ export interface Session {
   // When true, the tool launches with its native worktree flag (for Claude:
   // `--worktree`). The tool creates and manages the worktree itself.
   useWorktree?: boolean
+  // True when the user manually renamed this session. Auto-rename from
+  // terminal title-change events should not override a user-set name.
+  nameIsUserSet?: boolean
   createdAt: string
   colorLabel?: ColorLabel
   folderId?: string
@@ -94,6 +97,9 @@ interface AppState {
   addSession: (session: Session) => void
   removeSession: (id: string) => void
   renameSession: (id: string, name: string) => void
+  // Auto-rename triggered by the terminal's title-change event. Only takes
+  // effect if the session name was not user-set; never sets the user-set flag.
+  autoRenameSession: (id: string, name: string) => void
   setActiveSession: (id: string | null) => void
   openTab: (id: string) => void
   closeTab: (id: string) => void
@@ -195,7 +201,16 @@ export const useStore = create<AppState>((set) => ({
 
   renameSession: (id, name) =>
     set((state) => ({
-      sessions: state.sessions.map((s) => (s.id === id ? { ...s, name } : s))
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, name, nameIsUserSet: true } : s
+      )
+    })),
+
+  autoRenameSession: (id, name) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id && !s.nameIsUserSet ? { ...s, name } : s
+      )
     })),
 
   setActiveSession: (id) =>

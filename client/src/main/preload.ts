@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createGitWorktree: (workDir: string) => ipcRenderer.invoke(IPC.CREATE_GIT_WORKTREE, workDir) as Promise<{ ok: boolean; path?: string; branch?: string; error?: string }>,
   readFile: (filePath: string) => ipcRenderer.invoke(IPC.READ_FILE, filePath) as Promise<{ ok: boolean; content?: string; isDirectory?: boolean; error?: string }>,
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke(IPC.WRITE_FILE, filePath, content) as Promise<{ ok: boolean; error?: string }>,
+  getToolSessionSummary: (tool: string, toolSessionId: string) =>
+    ipcRenderer.invoke(IPC.GET_TOOL_SESSION_SUMMARY, tool, toolSessionId) as Promise<string>,
   showNotification: (title: string, body: string, sessionId?: string) => ipcRenderer.send(IPC.SHOW_NOTIFICATION, title, body, sessionId),
   onFocusSession: (cb: (sessionId: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, sessionId: string) => cb(sessionId)
