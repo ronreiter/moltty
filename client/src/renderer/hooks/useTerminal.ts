@@ -84,6 +84,12 @@ export function useTerminal(sessionId: string | null) {
       terminal.open(container)
       fitAddon.fit()
 
+      terminal.onTitleChange((title) => {
+        if (title && sessionId) {
+          useStore.getState().renameSession(sessionId, title)
+        }
+      })
+
       // Canvas renderer: pixel-perfect cell grid (no DOM-renderer line-width
       // jitter on scroll) and per-glyph browser rasterization (correct emoji
       // sizing, no WebGL atlas oversized-emoji bug).
