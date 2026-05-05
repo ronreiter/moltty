@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { useStore, COLOR_LABELS, ColorLabel, Session } from '../store'
 import SessionItem from './SessionItem'
@@ -38,6 +38,10 @@ function formatSize(bytes: number): string {
 
 type Tab = 'sessions' | 'history'
 
+const MIN_WIDTH = 180
+const MAX_WIDTH = 600
+const DEFAULT_WIDTH = 288 // w-72
+
 export default function Sidebar() {
   const { sessions, activeSessionId, createSession, deleteSession, updateSessionName, setActiveSession } =
     useSessions()
@@ -58,6 +62,40 @@ export default function Sidebar() {
   const [activeOnly, setActiveOnly] = useState(false)
   const sessionsScrollRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<{ raf: number | null; dir: 0 | 1 | -1 }>({ raf: null, dir: 0 })
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH)
+  const isDraggingRef = useRef(false)
+  const dragStartXRef = useRef(0)
+  const dragStartWidthRef = useRef(DEFAULT_WIDTH)
+
+  const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    dragStartXRef.current = e.clientX
+    dragStartWidthRef.current = sidebarWidth
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const delta = e.clientX - dragStartXRef.current
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, dragStartWidthRef.current + delta))
+      setSidebarWidth(newWidth)
+    }
+    const onMouseUp = () => {
+      if (!isDraggingRef.current) return
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
 
   // Auto-scroll the sessions list while dragging a session near the top/bottom edge.
   // Runs as an rAF loop so motion is smooth and stops the moment the cursor
@@ -173,7 +211,10 @@ export default function Sidebar() {
       .filter((g) => g.items.length > 0)
 
   return (
-    <div className="w-72 h-full bg-terminal-surface flex flex-col border-r border-terminal-border">
+    <div
+      className="h-full bg-terminal-surface flex flex-col border-r border-terminal-border relative flex-shrink-0"
+      style={{ width: sidebarWidth }}
+    >
       {/* Titlebar drag area */}
       <div className="titlebar-drag h-10 flex items-center pl-20 pr-4 flex-shrink-0">
         <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty{location.port ? ' (Dev)' : ''}</span>
@@ -425,6 +466,12 @@ export default function Sidebar() {
       </div>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
+      {/* Resize handle */}
+      <div
+        onMouseDown={onResizeMouseDown}
+        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-terminal-accent/40 transition-colors z-10"
+      />
     </div>
   )
 }
