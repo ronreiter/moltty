@@ -4,6 +4,47 @@ import { homedir } from 'os'
 import { readdirSync, readFileSync, writeFileSync, statSync, mkdirSync, existsSync } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 
+// Cache of (sessionId -> {lastPrompt, title}) so we only call the AI when the prompt changes
+const titleCache = new Map<string, { lastPrompt: string; title: string }>()
+
+function getClaudeOAuthToken(): string {
+  try {
+    const { execSync } = require('child_process')
+    const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', { stdio: 'pipe' }).toString().trim()
+    const creds = JSON.parse(raw)
+    return creds?.claudeAiOauth?.accessToken ?? ''
+  } catch {
+    return ''
+  }
+}
+
+async function generateSessionTitle(lastPrompt: string): Promise<string> {
+  const token = getClaudeOAuthToken()
+  if (!token) return ''
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 20,
+        messages: [{
+          role: 'user',
+          content: `Write a 2-5 word title for this message: "${lastPrompt.slice(0, 300)}"\nReply with only the title, no punctuation, no quotes.`
+        }]
+      })
+    })
+    const data = await res.json() as { content?: { text: string }[] }
+    return data?.content?.[0]?.text?.trim() ?? ''
+  } catch {
+    return ''
+  }
+}
+
 app.setName('Moltty')
 
 let mainWindow: BrowserWindow | null = null
@@ -204,10 +245,11 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
   return results
 })
 
-// Look up a session summary by tool + session id (used to auto-name a live
-// session from a meaningful source, since Claude's terminal title is just
-// the static string "Claude Code").
-ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionId: string) => {
+// Look up a session summary by tool + session id. Reads the last user message
+// from the JSONL tail, then uses the Anthropic API (via the user's existing
+// Claude OAuth token) to generate a short AI title. Caches by last prompt so
+// we only call the API when the conversation moves to a new task.
+ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, async (_event, tool: string, toolSessionId: string) => {
   if (tool !== 'claude' || !toolSessionId) return ''
   const projectsDir = join(homedir(), '.claude', 'projects')
   try {
@@ -220,15 +262,17 @@ ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionI
         continue
       }
       try {
+        const stat = statSync(filePath)
+        const tailSize = Math.min(32 * 1024, stat.size)
         const fd = require('fs').openSync(filePath, 'r')
-        const headBuf = Buffer.alloc(Math.min(64 * 1024, statSync(filePath).size))
-        require('fs').readSync(fd, headBuf, 0, headBuf.length, 0)
+        const tailBuf = Buffer.alloc(tailSize)
+        require('fs').readSync(fd, tailBuf, 0, tailSize, stat.size - tailSize)
         require('fs').closeSync(fd)
-        const raw = headBuf.toString('utf-8')
-        for (const line of raw.split('\n')) {
-          if (!line) continue
+        const lines = tailBuf.toString('utf-8').split('\n').filter(Boolean)
+        let lastPrompt = ''
+        for (let i = lines.length - 1; i >= 0; i--) {
           try {
-            const obj = JSON.parse(line)
+            const obj = JSON.parse(lines[i])
             if (obj.type === 'user' && obj.message) {
               const content = obj.message.content
               let text = ''
@@ -238,14 +282,23 @@ ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionI
               } else if (typeof content === 'string') {
                 text = content
               }
-              text = text.trim().split('\n')[0].slice(0, 80)
-              if (text && !text.toLowerCase().includes('interrupted')) return text
+              text = text.trim().slice(0, 300)
+              if (text && !text.toLowerCase().includes('interrupted') && !text.startsWith('<')) {
+                lastPrompt = text
+                break
+              }
             }
           } catch {
             // skip unparseable lines
           }
         }
-        return ''
+        if (!lastPrompt) return ''
+        const cached = titleCache.get(toolSessionId)
+        if (cached && cached.lastPrompt === lastPrompt) return cached.title
+        const title = await generateSessionTitle(lastPrompt)
+        const result = title || lastPrompt.slice(0, 60)
+        titleCache.set(toolSessionId, { lastPrompt, title: result })
+        return result
       } catch {
         return ''
       }
