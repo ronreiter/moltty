@@ -35,7 +35,7 @@ async function generateSessionTitle(firstPrompt: string): Promise<string> {
         max_tokens: 20,
         messages: [{
           role: 'user',
-          content: `Write a 2-5 word title for this message: "${firstPrompt.slice(0, 300)}"\nReply with only the title, no punctuation, no quotes.`
+          content: `Generate a short 3-6 word session title for a conversation that begins: "${firstPrompt.slice(0, 300)}"\nReply with only the title, no punctuation, no quotes.`
         }]
       })
     })
