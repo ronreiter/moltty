@@ -7,45 +7,6 @@ import { IPC } from '../shared/ipc-channels'
 // Cache: sessionId -> { fileSize, title } — re-read only when file grows
 const titleCache = new Map<string, { fileSize: number; title: string }>()
 
-function getClaudeOAuthToken(): string {
-  try {
-    const { execSync } = require('child_process')
-    const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', { stdio: 'pipe' }).toString().trim()
-    const creds = JSON.parse(raw)
-    return creds?.claudeAiOauth?.accessToken ?? ''
-  } catch {
-    return ''
-  }
-}
-
-// Called only for very new sessions that don't have an ai-title yet.
-async function generateSessionTitle(firstPrompt: string): Promise<string> {
-  const token = getClaudeOAuthToken()
-  if (!token) return ''
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 20,
-        messages: [{
-          role: 'user',
-          content: `Generate a short 3-6 word session title for a conversation that begins: "${firstPrompt.slice(0, 300)}"\nReply with only the title, no punctuation, no quotes.`
-        }]
-      })
-    })
-    const data = await res.json() as { content?: { text: string }[] }
-    return data?.content?.[0]?.text?.trim() ?? ''
-  } catch {
-    return ''
-  }
-}
-
 app.setName('Moltty')
 
 let mainWindow: BrowserWindow | null = null
@@ -250,7 +211,7 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
 // from the JSONL tail, then uses the Anthropic API (via the user's existing
 // Claude OAuth token) to generate a short AI title. Caches by last prompt so
 // we only call the API when the conversation moves to a new task.
-ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, async (_event, tool: string, toolSessionId: string) => {
+ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionId: string) => {
   if (tool !== 'claude' || !toolSessionId) return ''
   const projectsDir = join(homedir(), '.claude', 'projects')
   try {
@@ -283,29 +244,6 @@ ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, async (_event, tool: string, toolSe
             if (obj.type === 'custom-title' && obj.title) { title = obj.title; break }
             if (obj.type === 'ai-title' && obj.aiTitle && !title) title = obj.aiTitle
           } catch { /* skip */ }
-        }
-
-        if (!title) {
-          // New session — ai-title not written yet. Fall back to generating from first user message.
-          const headSize = Math.min(8 * 1024, stat.size)
-          const fd2 = require('fs').openSync(filePath, 'r')
-          const headBuf = Buffer.alloc(headSize)
-          require('fs').readSync(fd2, headBuf, 0, headSize, 0)
-          require('fs').closeSync(fd2)
-          for (const line of headBuf.toString('utf-8').split('\n')) {
-            try {
-              const obj = JSON.parse(line)
-              if (obj.type === 'user' && obj.message) {
-                const c = obj.message.content
-                let text = Array.isArray(c) ? (c.find((x: { type: string }) => x.type === 'text')?.text ?? '') : String(c ?? '')
-                text = text.trim().slice(0, 300)
-                if (text && !text.toLowerCase().includes('interrupted') && !text.startsWith('<')) {
-                  title = await generateSessionTitle(text)
-                  break
-                }
-              }
-            } catch { /* skip */ }
-          }
         }
 
         if (title) titleCache.set(toolSessionId, { fileSize: stat.size, title })
