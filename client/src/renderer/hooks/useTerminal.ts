@@ -255,10 +255,10 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().setToolSessionId(sessionId, toolId)
       }) || (() => {})
 
-      // Periodically pull a meaningful auto-name from the tool's own session
-      // log (Claude Code: last user message in the JSONL). Keeps running so
-      // the tab title updates whenever a new task starts. Stopped only when
-      // the user manually renames the tab. Cleared in the cleanup chain below.
+      // Periodically pull the session title written by Claude Code into the JSONL
+      // (ai-title / custom-title entries). Keeps running so the title appears
+      // as soon as Claude Code writes it. Stopped only when the user manually
+      // renames the tab. Cleared in the cleanup chain below.
       let summaryPollInterval: ReturnType<typeof setInterval> | null = null
       const pollSummary = async () => {
         const sess = useStore.getState().sessions.find((s) => s.id === sessionId)

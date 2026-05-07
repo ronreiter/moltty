@@ -4,8 +4,8 @@ import { homedir } from 'os'
 import { readdirSync, readFileSync, writeFileSync, statSync, mkdirSync, existsSync } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 
-// Cache of (sessionId -> {lastPrompt, title}) so we only call the AI when the prompt changes
-const titleCache = new Map<string, { lastPrompt: string; title: string }>()
+// Cache: sessionId -> { fileSize, title } — re-read only when file grows
+const titleCache = new Map<string, { fileSize: number; title: string }>()
 
 function getClaudeOAuthToken(): string {
   try {
@@ -18,7 +18,8 @@ function getClaudeOAuthToken(): string {
   }
 }
 
-async function generateSessionTitle(lastPrompt: string): Promise<string> {
+// Called only for very new sessions that don't have an ai-title yet.
+async function generateSessionTitle(firstPrompt: string): Promise<string> {
   const token = getClaudeOAuthToken()
   if (!token) return ''
   try {
@@ -34,7 +35,7 @@ async function generateSessionTitle(lastPrompt: string): Promise<string> {
         max_tokens: 20,
         messages: [{
           role: 'user',
-          content: `Write a 2-5 word title for this message: "${lastPrompt.slice(0, 300)}"\nReply with only the title, no punctuation, no quotes.`
+          content: `Write a 2-5 word title for this message: "${firstPrompt.slice(0, 300)}"\nReply with only the title, no punctuation, no quotes.`
         }]
       })
     })
@@ -263,42 +264,52 @@ ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, async (_event, tool: string, toolSe
       }
       try {
         const stat = statSync(filePath)
-        const tailSize = Math.min(32 * 1024, stat.size)
+        const cached = titleCache.get(toolSessionId)
+        if (cached && cached.fileSize === stat.size) return cached.title
+
+        // Read the tail first — ai-title/custom-title appears on nearly every line
+        const tailSize = Math.min(16 * 1024, stat.size)
         const fd = require('fs').openSync(filePath, 'r')
         const tailBuf = Buffer.alloc(tailSize)
         require('fs').readSync(fd, tailBuf, 0, tailSize, stat.size - tailSize)
         require('fs').closeSync(fd)
-        const lines = tailBuf.toString('utf-8').split('\n').filter(Boolean)
-        let lastPrompt = ''
-        for (let i = lines.length - 1; i >= 0; i--) {
+        const tailLines = tailBuf.toString('utf-8').split('\n').filter(Boolean)
+
+        // custom-title (user-set) beats ai-title (Claude-generated)
+        let title = ''
+        for (let i = tailLines.length - 1; i >= 0; i--) {
           try {
-            const obj = JSON.parse(lines[i])
-            if (obj.type === 'user' && obj.message) {
-              const content = obj.message.content
-              let text = ''
-              if (Array.isArray(content)) {
-                const tc = content.find((c: { type: string }) => c.type === 'text')
-                if (tc) text = tc.text
-              } else if (typeof content === 'string') {
-                text = content
+            const obj = JSON.parse(tailLines[i])
+            if (obj.type === 'custom-title' && obj.title) { title = obj.title; break }
+            if (obj.type === 'ai-title' && obj.aiTitle && !title) title = obj.aiTitle
+          } catch { /* skip */ }
+        }
+
+        if (!title) {
+          // New session — ai-title not written yet. Fall back to generating from first user message.
+          const headSize = Math.min(8 * 1024, stat.size)
+          const fd2 = require('fs').openSync(filePath, 'r')
+          const headBuf = Buffer.alloc(headSize)
+          require('fs').readSync(fd2, headBuf, 0, headSize, 0)
+          require('fs').closeSync(fd2)
+          for (const line of headBuf.toString('utf-8').split('\n')) {
+            try {
+              const obj = JSON.parse(line)
+              if (obj.type === 'user' && obj.message) {
+                const c = obj.message.content
+                let text = Array.isArray(c) ? (c.find((x: { type: string }) => x.type === 'text')?.text ?? '') : String(c ?? '')
+                text = text.trim().slice(0, 300)
+                if (text && !text.toLowerCase().includes('interrupted') && !text.startsWith('<')) {
+                  title = await generateSessionTitle(text)
+                  break
+                }
               }
-              text = text.trim().slice(0, 300)
-              if (text && !text.toLowerCase().includes('interrupted') && !text.startsWith('<')) {
-                lastPrompt = text
-                break
-              }
-            }
-          } catch {
-            // skip unparseable lines
+            } catch { /* skip */ }
           }
         }
-        if (!lastPrompt) return ''
-        const cached = titleCache.get(toolSessionId)
-        if (cached && cached.lastPrompt === lastPrompt) return cached.title
-        const title = await generateSessionTitle(lastPrompt)
-        const result = title || lastPrompt.slice(0, 60)
-        titleCache.set(toolSessionId, { lastPrompt, title: result })
-        return result
+
+        if (title) titleCache.set(toolSessionId, { fileSize: stat.size, title })
+        return title
       } catch {
         return ''
       }
