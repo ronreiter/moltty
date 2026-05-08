@@ -1,6 +1,6 @@
 {
   "name": "moltty",
-  "version": "1.31.0",
+  "version": "1.32.0",
   "description": "Remote terminal client",
   "main": "out/main/index.js",
   "scripts": {
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@xterm/addon-canvas": "^0.7.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/addon-unicode-graphemes": "^0.4.0",

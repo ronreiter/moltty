@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { CanvasAddon } from '@xterm/addon-canvas'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { UnicodeGraphemesAddon } from '@xterm/addon-unicode-graphemes'
@@ -96,13 +96,22 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().autoRenameSession(sessionId, title)
       })
 
-      // Canvas renderer: pixel-perfect cell grid (no DOM-renderer line-width
-      // jitter on scroll) and per-glyph browser rasterization (correct emoji
-      // sizing, no WebGL atlas oversized-emoji bug).
+      // WebGL renderer: fastest by a wide margin. The oversized-emoji bug that
+      // pushed us off WebGL in v1.27 was actually a Unicode width-table issue,
+      // fixed above by UnicodeGraphemesAddon (emoji are now 2-cell wide so
+      // WebGL's atlas rasterizes them at the right size). The other WebGL
+      // failure mode — stale glyph columns after resize / heavy redraw bursts —
+      // is mitigated by clearing the texture atlas on every resize (below).
+      let webglAddon: WebglAddon | null = null
       try {
-        terminal.loadAddon(new CanvasAddon())
+        webglAddon = new WebglAddon()
+        webglAddon.onContextLoss(() => {
+          webglAddon?.dispose()
+          webglAddon = null
+        })
+        terminal.loadAddon(webglAddon)
       } catch {
-        // Canvas not available
+        // WebGL not available — fall back to default DOM renderer.
       }
 
       // Web links: click to open URLs in browser
@@ -351,6 +360,10 @@ export function useTerminal(sessionId: string | null) {
         if (stayAtBottom) {
           terminal.scrollToBottom()
         }
+        // Flush the WebGL glyph atlas — without this we occasionally get stale
+        // columns of text drawn over fresh content during the post-resize
+        // redraw burst from full-screen TUIs.
+        webglAddon?.clearTextureAtlas()
         window.electronAPI.resizeLocalPty(sessionId, terminal.cols, terminal.rows)
       })
       resizeObserver.observe(container)

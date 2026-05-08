@@ -200,7 +200,9 @@ export default function Sidebar() {
     return sortKey(b) - sortKey(a)
   }
   const openSessions = sessions.filter((s) => s.status === 'open' && matchSession(s)).sort(sortBySession)
-  const closedSessions = activeOnly
+  // When the user is actively searching, ignore the "Active only" toggle so a
+  // query can find a closed session they haven't reopened yet.
+  const closedSessions = (activeOnly && !search)
     ? []
     : sessions.filter((s) => s.status === 'closed' && matchSession(s)).sort(sortBySession)
 
