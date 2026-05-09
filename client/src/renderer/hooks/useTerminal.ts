@@ -10,11 +10,34 @@ import { CODING_TOOLS } from '../services/api'
 import { getTheme, type ThemeId } from '../services/themes'
 
 // Open a local file path in the Monaco side pane, parsing optional :line[:col] suffix.
-function openFilePathInEditor(rawPath: string) {
+// Directories are routed to the OS file manager (Finder on macOS) instead — opening
+// a folder in a code-editor pane has no useful behavior.
+async function openFilePathInEditor(rawPath: string) {
   const m = rawPath.match(/^(.+?)(?::(\d+))?(?::\d+)?$/)
   const path = m?.[1] ?? rawPath
   const line = m?.[2] ? parseInt(m[2], 10) : undefined
+  const probe = await window.electronAPI.readFile(path)
+  if (probe.isDirectory) {
+    window.electronAPI.openPath(path)
+    return
+  }
   useStore.getState().setEditorFile(path, line)
+}
+
+// Dedupe URL clicks: xterm fires both linkHandler (OSC 8 hyperlinks) and
+// WebLinksAddon (plaintext URL regex) for the same click when a tool emits an
+// OSC 8 hyperlink whose visible text is the URL itself — which is what
+// FORCE_HYPERLINK=1 produces. Without this guard the browser opens twice.
+// Use a short time-only window so distinct URLs that happen to be clicked in
+// rapid succession from the SAME click event are also caught (string equality
+// alone misses cases where two providers pass slightly different strings, e.g.
+// trailing whitespace or punctuation).
+let lastOpenedAt = 0
+function openExternalDeduped(url: string) {
+  const now = Date.now()
+  if (now - lastOpenedAt < 400) return
+  lastOpenedAt = now
+  window.electronAPI.openExternal(url)
 }
 
 // Track last time the document became visible. Used to suppress busy-burst
@@ -60,7 +83,7 @@ export function useTerminal(sessionId: string | null) {
               const path = uri.replace(/^file:\/\//, '')
               openFilePathInEditor(path)
             } else {
-              window.electronAPI.openExternal(uri)
+              openExternalDeduped(uri)
             }
           }
         }
@@ -121,7 +144,7 @@ export function useTerminal(sessionId: string | null) {
 
       // Web links: click to open URLs in browser
       terminal.loadAddon(new WebLinksAddon((_event, uri) => {
-        window.electronAPI.openExternal(uri)
+        openExternalDeduped(uri)
       }))
 
       // File path links: click to open local paths

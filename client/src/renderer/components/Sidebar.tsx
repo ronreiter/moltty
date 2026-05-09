@@ -5,6 +5,7 @@ import SessionItem from './SessionItem'
 import FolderItem from './FolderItem'
 import SettingsModal from './SettingsModal'
 import type { ClaudeSession } from '../services/api'
+import iconUrl from '../../../resources/icon.png?url'
 
 function shortPath(cwd: string): string {
   const home = '/Users/'
@@ -217,9 +218,12 @@ export default function Sidebar() {
       className="h-full bg-terminal-surface flex flex-col border-r border-terminal-border relative flex-shrink-0"
       style={{ width: sidebarWidth }}
     >
-      {/* Titlebar drag area */}
-      <div className="titlebar-drag h-10 flex items-center pl-20 pr-4 flex-shrink-0">
-        <span className="titlebar-no-drag text-sm font-semibold text-terminal-accent">Moltty{location.port ? ' (Dev)' : ''}</span>
+      {/* Titlebar drag area — title + icon are part of the drag region so the
+          user can drag the window from anywhere here. select-none prevents
+          text-selection from competing with the OS-level drag gesture. */}
+      <div className="titlebar-drag h-10 flex items-center gap-2 pl-20 pr-4 flex-shrink-0 select-none">
+        <img src={iconUrl} alt="" className="w-4 h-4 rounded-[4px] flex-shrink-0" draggable={false} />
+        <span className="text-sm font-semibold text-terminal-accent">Moltty{location.port ? ' (Dev)' : ''}</span>
       </div>
 
       {/* New session button */}
