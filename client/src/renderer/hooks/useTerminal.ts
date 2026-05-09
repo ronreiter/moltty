@@ -91,8 +91,13 @@ export function useTerminal(sessionId: string | null) {
       // the conversation summary from the JSONL below.
       terminal.onTitleChange((title) => {
         if (!title || !sessionId) return
+        // Strip leading non-word characters before matching: Claude Code
+        // prefixes its title with a status emoji + space (e.g. "✳ Claude
+        // Code"), which would otherwise slip past an exact-match filter and
+        // overwrite the cwd-derived default with the bare product name.
+        const cleaned = title.replace(/^[^\w]+/, '').trim().toLowerCase()
         const generic = ['claude code', 'claude', 'gemini', 'codex', 'aider', 'opencode']
-        if (generic.includes(title.trim().toLowerCase())) return
+        if (generic.includes(cleaned)) return
         useStore.getState().autoRenameSession(sessionId, title)
       })
 

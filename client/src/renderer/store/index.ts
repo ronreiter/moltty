@@ -57,7 +57,14 @@ function migrateData(data: SessionData): SessionData {
     return {
       ...rest,
       toolSessionId,
-      status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const)
+      status: openTabSet.has(s.id) ? ('open' as const) : ('closed' as const),
+      // Lock the saved name on every restored session. Sessions saved before
+      // v1.30 didn't carry `nameIsUserSet`, so a later OSC title from the
+      // running tool (e.g. Claude Code's "✳ <activity>") would silently
+      // overwrite manually-renamed tabs via autoRenameSession. Treat anything
+      // that survived a save as deliberate; the OSC title sync still works
+      // for newly-created sessions in the current run.
+      nameIsUserSet: true
     }
   })
   data.folders = data.folders || []
