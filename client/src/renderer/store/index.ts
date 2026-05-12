@@ -349,12 +349,14 @@ export const useStore = create<AppState>((set) => ({
       const old = state.sessions.find((s) => s.id === id)
       if (!old) return state
       const newId = crypto.randomUUID()
+      // Spread the old session so we carry every field (folderId, colorLabel,
+      // nameIsUserSet, displayDir, skipPermissions, useWorktree, …). The old
+      // implementation listed fields one-by-one and silently dropped folder
+      // assignment and the user-set-name flag on every reopen.
       const newSession: Session = {
+        ...old,
         id: newId,
-        name: old.name,
         status: 'open',
-        workDir: old.workDir,
-        toolSessionId: old.toolSessionId,
         createdAt: new Date().toISOString()
       }
       return {
