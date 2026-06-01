@@ -14,6 +14,9 @@ export type MolttySettings = {
   theme?: string
   notifications?: boolean
   autoUpdate?: boolean
+  // Per-terminal scrollback line limit. Lower values reduce memory/GC pressure
+  // when many sessions stay open for a long time. Defaults to 10000.
+  scrollback?: number
 }
 
 // Per-tool session config:

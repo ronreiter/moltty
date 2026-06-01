@@ -24,20 +24,21 @@ async function openFilePathInEditor(rawPath: string) {
   useStore.getState().setEditorFile(path, line)
 }
 
-// Dedupe URL clicks: xterm fires both linkHandler (OSC 8 hyperlinks) and
-// WebLinksAddon (plaintext URL regex) for the same click when a tool emits an
-// OSC 8 hyperlink whose visible text is the URL itself — which is what
-// FORCE_HYPERLINK=1 produces. Without this guard the browser opens twice.
-// Use a short time-only window so distinct URLs that happen to be clicked in
-// rapid succession from the SAME click event are also caught (string equality
-// alone misses cases where two providers pass slightly different strings, e.g.
-// trailing whitespace or punctuation).
-let lastOpenedAt = 0
-function openExternalDeduped(url: string) {
-  const now = Date.now()
-  if (now - lastOpenedAt < 400) return
-  lastOpenedAt = now
-  window.electronAPI.openExternal(url)
+// Dedupe link clicks across providers. xterm can fire multiple link
+// activations for a single physical click:
+//   - OSC 8 linkHandler + WebLinksAddon both match a URL when a tool emits an
+//     OSC 8 hyperlink whose visible text is the URL (FORCE_HYPERLINK=1)
+//   - OSC 8 linkHandler + our file-path provider both match a hyperlinked path
+// All providers receive the SAME MouseEvent, so we key on its timeStamp: the
+// first activation for a given click runs, sibling activations for the same
+// click are ignored. This is exact (unlike a wall-clock window, which both
+// misses slow double-fires and wrongly suppresses genuine rapid distinct
+// clicks) and covers file opens too, not just external URLs.
+let lastHandledClickTs = -1
+function runLinkActivationOnce(event: MouseEvent, action: () => void) {
+  if (event.timeStamp === lastHandledClickTs) return
+  lastHandledClickTs = event.timeStamp
+  action()
 }
 
 // Track last time the document became visible. Used to suppress busy-burst
@@ -74,17 +75,22 @@ export function useTerminal(sessionId: string | null) {
         cursorBlink: false,
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-        scrollback: 50000,
+        // Default to no scrollback: the AI tools run in the terminal's alternate
+        // screen buffer (full-screen TUI), which doesn't use scrollback at all —
+        // so retained history is wasted memory that grows over a long session.
+        scrollback: useStore.getState().settings?.scrollback ?? 0,
         theme: appTheme.terminal,
         linkHandler: {
           allowNonHttpProtocols: true,
-          activate: (_event: MouseEvent, uri: string) => {
-            if (uri.startsWith('file://') || uri.startsWith('/') || uri.startsWith('~/')) {
-              const path = uri.replace(/^file:\/\//, '')
-              openFilePathInEditor(path)
-            } else {
-              openExternalDeduped(uri)
-            }
+          activate: (event: MouseEvent, uri: string) => {
+            runLinkActivationOnce(event, () => {
+              if (uri.startsWith('file://') || uri.startsWith('/') || uri.startsWith('~/')) {
+                const path = uri.replace(/^file:\/\//, '')
+                openFilePathInEditor(path)
+              } else {
+                window.electronAPI.openExternal(uri)
+              }
+            })
           }
         }
       })
@@ -143,8 +149,8 @@ export function useTerminal(sessionId: string | null) {
       }
 
       // Web links: click to open URLs in browser
-      terminal.loadAddon(new WebLinksAddon((_event, uri) => {
-        openExternalDeduped(uri)
+      terminal.loadAddon(new WebLinksAddon((event, uri) => {
+        runLinkActivationOnce(event as MouseEvent, () => window.electronAPI.openExternal(uri))
       }))
 
       // File path links: click to open local paths
@@ -166,8 +172,8 @@ export function useTerminal(sessionId: string | null) {
           callback(links.map((l) => ({
             range: { start: { x: l.startIndex + 1, y: lineNumber }, end: { x: l.startIndex + l.length + 1, y: lineNumber } },
             text: l.text,
-            activate(_event: MouseEvent, linkText: string) {
-              openFilePathInEditor(linkText)
+            activate(event: MouseEvent, linkText: string) {
+              runLinkActivationOnce(event, () => openFilePathInEditor(linkText))
             }
           })))
         }
@@ -338,6 +344,14 @@ export function useTerminal(sessionId: string | null) {
       } else {
         command = toolDef.command
       }
+      // Force Claude into full-screen TUI mode (alternate screen buffer). There
+      // is no --tui launch flag, but the `tui` settings key can be merged in for
+      // this session via --settings. In full-screen mode Claude manages its own
+      // scrolling and never writes to the terminal scrollback, so the default
+      // scrollback of 0 (see terminal init above) costs no history.
+      if (toolDef.id === 'claude') {
+        command += ` --settings '{"tui":"fullscreen"}'`
+      }
       if (session?.skipPermissions) {
         command += ' --enable-auto-mode'
       }
@@ -436,6 +450,9 @@ export function useTerminal(sessionId: string | null) {
       if (state.fontSize !== prev.fontSize) {
         terminalRef.current.options.fontSize = state.fontSize
         fitAddonRef.current?.fit()
+      }
+      if (state.settings?.scrollback !== prev.settings?.scrollback) {
+        terminalRef.current.options.scrollback = state.settings?.scrollback ?? 0
       }
     })
     return unsubscribe

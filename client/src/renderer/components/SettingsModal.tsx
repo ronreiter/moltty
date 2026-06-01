@@ -10,6 +10,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const [loadZshrc, setLoadZshrc] = useState(settings?.loadZshrc ?? true)
   const [notifications, setNotifications] = useState(settings?.notifications ?? true)
   const [autoUpdate, setAutoUpdate] = useState(settings?.autoUpdate ?? true)
+  const [scrollback, setScrollback] = useState(settings?.scrollback ?? 0)
   const [theme, setTheme] = useState<ThemeId>((settings?.theme as ThemeId) || 'dark1')
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   }, [onClose])
 
   const handleSave = () => {
-    const newSettings: MolttySettings = { codingTool: selected, loadZshrc, notifications, autoUpdate, theme }
+    const newSettings: MolttySettings = { codingTool: selected, loadZshrc, notifications, autoUpdate, scrollback, theme }
     setSettings(newSettings)
     onClose()
   }
@@ -121,6 +122,25 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             <span className="text-sm text-terminal-text">Auto-update</span>
             <span className="text-xs text-terminal-subtext">Automatically download new versions on startup</span>
           </div>
+        </label>
+
+        <label className="flex items-center gap-3 px-4 py-3 rounded-lg bg-terminal-surface border border-terminal-border cursor-pointer">
+          <div className="flex flex-col flex-1">
+            <span className="text-sm text-terminal-text">Scrollback</span>
+            <span className="text-xs text-terminal-subtext">Lines of history kept per terminal. Full-screen tools don't use it; None saves the most memory.</span>
+          </div>
+          <select
+            value={scrollback}
+            onChange={(e) => setScrollback(Number(e.target.value))}
+            className="bg-terminal-bg text-terminal-text text-sm px-2 py-1 rounded border border-terminal-border focus:border-terminal-accent outline-none"
+          >
+            <option value={0}>None</option>
+            <option value={1000}>1,000</option>
+            <option value={5000}>5,000</option>
+            <option value={10000}>10,000</option>
+            <option value={25000}>25,000</option>
+            <option value={50000}>50,000</option>
+          </select>
         </label>
 
         <div className="flex gap-3 justify-end">
