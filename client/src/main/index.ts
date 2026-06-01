@@ -64,6 +64,15 @@ function createWindow(): void {
     event.preventDefault()
   })
 
+  // Clicking a terminal hyperlink (OSC 8) opens the URL twice: once via our own
+  // link handler (→ window.electronAPI.openExternal) and once via a native
+  // window-open that Chromium fires for the underlying link element. That native
+  // path bypasses all JS-side dedup. We already route every link through
+  // openExternal, so deny all renderer-initiated window opens to kill the dupe.
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    return { action: 'deny' }
+  })
+
   // Block Cmd/Ctrl+R (page reload). Reloading the renderer kills React state,
   // scroll positions, and all in-flight UI work; PTYs in main survive but the
   // user-visible app state is lost. Cmd+R should pass through to the active
