@@ -298,9 +298,10 @@ export function useTerminal(sessionId: string | null) {
         useStore.getState().setToolSessionId(sessionId, toolId)
       }) || (() => {})
 
-      // Periodically pull a meaningful auto-name from the tool's own session
-      // log (Claude Code: first user message in the JSONL). Stops once we
-      // successfully rename. Cleared in the cleanup chain below.
+      // Periodically pull the session title written by Claude Code into the JSONL
+      // (ai-title / custom-title entries). Keeps running so the title appears
+      // as soon as Claude Code writes it. Stopped only when the user manually
+      // renames the tab. Cleared in the cleanup chain below.
       let summaryPollInterval: ReturnType<typeof setInterval> | null = null
       const pollSummary = async () => {
         const sess = useStore.getState().sessions.find((s) => s.id === sessionId)
@@ -314,8 +315,6 @@ export function useTerminal(sessionId: string | null) {
         const summary = await window.electronAPI.getToolSessionSummary?.(tool, sess.toolSessionId)
         if (summary && summary !== sess.name) {
           useStore.getState().autoRenameSession(sessionId, summary)
-          if (summaryPollInterval) clearInterval(summaryPollInterval)
-          summaryPollInterval = null
         }
       }
       summaryPollInterval = setInterval(pollSummary, 5000)

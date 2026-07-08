@@ -4,6 +4,9 @@ import { homedir } from 'os'
 import { readdirSync, readFileSync, writeFileSync, statSync, mkdirSync, existsSync } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 
+// Cache: sessionId -> { fileSize, title } — re-read only when file grows
+const titleCache = new Map<string, { fileSize: number; title: string }>()
+
 app.setName('Moltty')
 
 let mainWindow: BrowserWindow | null = null
@@ -213,9 +216,10 @@ ipcMain.handle(IPC.LIST_CLAUDE_SESSIONS, () => {
   return results
 })
 
-// Look up a session summary by tool + session id (used to auto-name a live
-// session from a meaningful source, since Claude's terminal title is just
-// the static string "Claude Code").
+// Look up a session summary by tool + session id. Reads the last user message
+// from the JSONL tail, then uses the Anthropic API (via the user's existing
+// Claude OAuth token) to generate a short AI title. Caches by last prompt so
+// we only call the API when the conversation moves to a new task.
 ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionId: string) => {
   if (tool !== 'claude' || !toolSessionId) return ''
   const projectsDir = join(homedir(), '.claude', 'projects')
@@ -229,32 +233,30 @@ ipcMain.handle(IPC.GET_TOOL_SESSION_SUMMARY, (_event, tool: string, toolSessionI
         continue
       }
       try {
+        const stat = statSync(filePath)
+        const cached = titleCache.get(toolSessionId)
+        if (cached && cached.fileSize === stat.size) return cached.title
+
+        // Read the tail first — ai-title/custom-title appears on nearly every line
+        const tailSize = Math.min(16 * 1024, stat.size)
         const fd = require('fs').openSync(filePath, 'r')
-        const headBuf = Buffer.alloc(Math.min(64 * 1024, statSync(filePath).size))
-        require('fs').readSync(fd, headBuf, 0, headBuf.length, 0)
+        const tailBuf = Buffer.alloc(tailSize)
+        require('fs').readSync(fd, tailBuf, 0, tailSize, stat.size - tailSize)
         require('fs').closeSync(fd)
-        const raw = headBuf.toString('utf-8')
-        for (const line of raw.split('\n')) {
-          if (!line) continue
+        const tailLines = tailBuf.toString('utf-8').split('\n').filter(Boolean)
+
+        // custom-title (user-set) beats ai-title (Claude-generated)
+        let title = ''
+        for (let i = tailLines.length - 1; i >= 0; i--) {
           try {
-            const obj = JSON.parse(line)
-            if (obj.type === 'user' && obj.message) {
-              const content = obj.message.content
-              let text = ''
-              if (Array.isArray(content)) {
-                const tc = content.find((c: { type: string }) => c.type === 'text')
-                if (tc) text = tc.text
-              } else if (typeof content === 'string') {
-                text = content
-              }
-              text = text.trim().split('\n')[0].slice(0, 80)
-              if (text && !text.toLowerCase().includes('interrupted')) return text
-            }
-          } catch {
-            // skip unparseable lines
-          }
+            const obj = JSON.parse(tailLines[i])
+            if (obj.type === 'custom-title' && obj.title) { title = obj.title; break }
+            if (obj.type === 'ai-title' && obj.aiTitle && !title) title = obj.aiTitle
+          } catch { /* skip */ }
         }
-        return ''
+
+        if (title) titleCache.set(toolSessionId, { fileSize: stat.size, title })
+        return title
       } catch {
         return ''
       }
